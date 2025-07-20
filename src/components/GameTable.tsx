@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import {
-  GameState,
-  Player,
   createNewGame,
   dealCards,
   determineWinner,
 } from '@/lib/game-logic/engine';
+import { GameState, Player } from '@/lib/game-logic/types';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 
