@@ -33,6 +33,29 @@ const GameTable = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!gameState || !user) return;
+
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    const isAITurn = currentPlayer.name !== user.username;
+
+    if (isAITurn && gameState.currentPhase === 'betting') {
+      const aiAction = (): PlayerAction => {
+        // Simple AI: 50% chance to fold, otherwise call.
+        if (Math.random() < 0.5) {
+          return { type: 'fold' };
+        }
+        return { type: 'call' };
+      };
+
+      const timer = setTimeout(() => {
+        onPlayerAction(aiAction());
+      }, 2000); // AI "thinks" for 2 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, user]);
+
   const onPlayerAction = (action: PlayerAction) => {
     if (!gameState) return;
     const newGameState = handlePlayerAction(gameState, action);
