@@ -3,20 +3,23 @@
 import GameTable from '@/components/GameTable';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const PlayPage = () => {
   const { isLoggedIn } = useAuth();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoggedIn) {
       router.push('/login');
+    } else {
+      setIsLoading(false);
     }
   }, [isLoggedIn, router]);
 
-  if (!isLoggedIn) {
-    return null; // or a loading spinner
+  if (isLoading) {
+    return <div>Loading...</div>; // or a loading spinner
   }
 
   return (
