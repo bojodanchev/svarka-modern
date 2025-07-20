@@ -16,23 +16,23 @@ const Header = () => {
             href="/play"
             className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors"
           >
-            Play
+            Играй
           </Link>
           <Link
             href="/rules"
             className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors"
           >
-            Rules
+            Правила
           </Link>
           <Link
             href="/about"
             className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors"
           >
-            About
+            За нас
           </Link>
           <div className="flex items-center space-x-2">
-            <Button variant="outline">Login</Button>
-            <Button>Sign Up</Button>
+            <Button variant="outline">Вход</Button>
+            <Button>Регистрация</Button>
           </div>
         </nav>
       </div>

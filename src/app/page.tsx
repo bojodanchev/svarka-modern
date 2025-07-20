@@ -8,21 +8,21 @@ export default function Home() {
         <main className="text-5xl md:text-6xl font-bold">
           <h1 className="inline">
             <span className="inline bg-gradient-to-r from-[#F596D3]  to-[#D247BF] text-transparent bg-clip-text">
-              Svarka
+              Сварка
             </span>{' '}
-            Online
+            Онлайн
           </h1>{' '}
-          for the modern an age
+          за модерната епоха
         </main>
 
         <p className="text-xl text-muted-foreground md:w-10/12 mx-auto lg:mx-0">
-          The classic Bulgarian card game, now in your browser. Play with
-          friends, join tournaments, and climb the leaderboard.
+          Класическата българска игра на карти, сега във вашия браузър. Играйте с
+          приятели, присъединете се към турнири и се изкачете в класацията.
         </p>
 
         <div className="space-y-4 md:space-y-0 md:space-x-4">
           <Link href="/play">
-            <Button className="w-full md:w-1/3">Play Now</Button>
+            <Button className="w-full md:w-1/3">Играй сега</Button>
           </Link>
         </div>
       </div>

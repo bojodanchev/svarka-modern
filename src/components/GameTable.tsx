@@ -41,13 +41,13 @@ const GameTable = () => {
 
   return (
     <div className="flex flex-col items-center p-4 bg-gray-100 dark:bg-gray-900 rounded-lg shadow-lg">
-      <h1 className="text-3xl font-bold mb-4">Svarka Game</h1>
+      <h1 className="text-3xl font-bold mb-4">Игра Сварка</h1>
       <div className="flex justify-around w-full mb-4">
         {gameState.players.map(player => (
           <Card key={player.id} className="w-1/3">
             <CardContent className="p-4">
               <h2 className="text-xl font-bold">{player.name}</h2>
-              <p>Balance: ${player.balance}</p>
+              <p>Баланс: ${player.balance}</p>
               <div className="flex mt-2">
                 {player.hand.map((card, index) => (
                   <Card key={index} className="w-16 h-24 mr-2">
@@ -65,12 +65,12 @@ const GameTable = () => {
         ))}
       </div>
       <div className="flex space-x-4">
-        <Button onClick={handleDeal}>Deal Cards</Button>
-        <Button onClick={handleShowdown}>Showdown</Button>
+        <Button onClick={handleDeal}>Раздай карти</Button>
+        <Button onClick={handleShowdown}>Покажи картите</Button>
       </div>
       {winner && (
         <div className="mt-4 text-2xl font-bold text-green-500">
-          Winner: {winner.name}!
+          Победител: {winner.name}!
         </div>
       )}
     </div>
