@@ -58,8 +58,12 @@ const Header = () => {
             Контакти
           </Link>
           <div className="flex items-center space-x-2">
-            <Button variant="outline">Вход</Button>
-            <Button>Регистрация</Button>
+            <Link href="/login">
+              <Button variant="outline">Вход</Button>
+            </Link>
+            <Link href="/register">
+              <Button>Регистрация</Button>
+            </Link>
           </div>
         </nav>
       </div>

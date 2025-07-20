@@ -8,15 +8,14 @@ import {
 } from '@/lib/game-logic/engine';
 import { GameState, Player } from '@/lib/game-logic/types';
 import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
+import { Card as UICard, CardContent } from './ui/card';
 
 const GameTable = () => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [winner, setWinner] = useState<Player | null>(null);
 
   useEffect(() => {
-    // Initialize the game with two players
-    const newGame = createNewGame(['Player 1', 'Player 2']);
+    const newGame = createNewGame(['bojodanchev', 'Player 2']);
     setGameState(newGame);
   }, []);
 
@@ -40,39 +39,39 @@ const GameTable = () => {
   }
 
   return (
-    <div className="flex flex-col items-center p-4 bg-gray-100 dark:bg-gray-900 rounded-lg shadow-lg">
-      <h1 className="text-3xl font-bold mb-4">Игра Сварка</h1>
-      <div className="flex justify-around w-full mb-4">
-        {gameState.players.map(player => (
-          <Card key={player.id} className="w-1/3">
-            <CardContent className="p-4">
-              <h2 className="text-xl font-bold">{player.name}</h2>
-              <p>Баланс: ${player.balance}</p>
-              <div className="flex mt-2">
-                {player.hand.map((card, index) => (
-                  <Card key={index} className="w-16 h-24 mr-2">
-                    <CardContent className="flex items-center justify-center h-full">
-                      <span className="text-2xl">
-                        {card.rank}
-                        {card.suit}
-                      </span>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="flex space-x-4">
-        <Button onClick={handleDeal}>Раздай карти</Button>
-        <Button onClick={handleShowdown}>Покажи картите</Button>
-      </div>
-      {winner && (
-        <div className="mt-4 text-2xl font-bold text-green-500">
-          Победител: {winner.name}!
+    <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex-1 bg-red-800 rounded-full p-8 relative aspect-video">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-red-600 rounded-full border-4 border-yellow-400"></div>
+        {/* Player seats */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          Player 2
         </div>
-      )}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
+          bojodanchev
+        </div>
+      </div>
+      <div className="w-full lg:w-1/3 space-y-4">
+        <Button onClick={handleDeal} className="w-full">
+          Раздай карти
+        </Button>
+        <Button onClick={handleShowdown} className="w-full">
+          Покажи картите
+        </Button>
+        <UICard>
+          <CardContent className="p-4">
+            <h2 className="text-xl font-bold mb-2">Чат</h2>
+            <div className="h-48 bg-muted rounded-md p-2">
+              <p>21:39:34 Масата е отворена</p>
+              <p>21:39:34 bojodanchev отвори масата.</p>
+            </div>
+          </CardContent>
+        </UICard>
+        {winner && (
+          <div className="mt-4 text-2xl font-bold text-green-500">
+            Победител: {winner.name}!
+          </div>
+        )}
+      </div>
     </div>
   );
 };
