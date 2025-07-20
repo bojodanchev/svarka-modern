@@ -8,11 +8,18 @@ interface User {
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error('Failed to parse user from localStorage', error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -27,5 +34,5 @@ export const useAuth = () => {
     setUser(null);
   }, []);
 
-  return { user, isLoggedIn: !!user, login, logout };
+  return { user, isLoggedIn: !!user, login, logout, isLoading };
 }; 

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from './ui/button';
 
 const Header = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
 
   return (
     <header className="bg-background border-b shadow-sm">
@@ -63,7 +63,7 @@ const Header = () => {
             Контакти
           </Link>
           <div className="flex items-center space-x-2">
-            {user ? (
+            {isLoading ? null : user ? (
               <>
                 <span>Здравей, {user.username}!</span>
                 <Button onClick={logout} variant="outline">
