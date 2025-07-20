@@ -25,10 +25,34 @@ const Header = () => {
             Правила
           </Link>
           <Link
+            href="/tables"
+            className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            Маси
+          </Link>
+          <Link
+            href="/tournaments"
+            className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            Турнири
+          </Link>
+          <Link
+            href="/users"
+            className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            Потребители
+          </Link>
+          <Link
             href="/about"
             className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors"
           >
             За нас
+          </Link>
+          <Link
+            href="/contacts"
+            className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            Контакти
           </Link>
           <div className="flex items-center space-x-2">
             <Button variant="outline">Вход</Button>
