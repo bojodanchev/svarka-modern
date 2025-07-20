@@ -52,7 +52,29 @@ export class Game {
     });
 
     this.state.dealerIndex = (this.state.dealerIndex + 1) % this.state.players.length;
-    this.state.currentPlayerIndex = (this.state.dealerIndex + 1) % this.state.players.length;
+    
+    // Post blinds
+    const smallBlindIndex = (this.state.dealerIndex + 1) % this.state.players.length;
+    const bigBlindIndex = (this.state.dealerIndex + 2) % this.state.players.length;
+
+    const smallBlindPlayer = this.state.players[smallBlindIndex];
+    if (smallBlindPlayer) {
+      const blindAmount = 5;
+      smallBlindPlayer.balance -= blindAmount;
+      smallBlindPlayer.currentBet = blindAmount;
+      this.state.pot += blindAmount;
+    }
+
+    const bigBlindPlayer = this.state.players[bigBlindIndex];
+    if (bigBlindPlayer) {
+      const blindAmount = 10;
+      bigBlindPlayer.balance -= blindAmount;
+      bigBlindPlayer.currentBet = blindAmount;
+      this.state.pot += blindAmount;
+      this.state.lastBet = blindAmount;
+    }
+
+    this.state.currentPlayerIndex = (this.state.dealerIndex + 3) % this.state.players.length;
 
     this.state.players.forEach(player => {
       player.hand = this.state.deck.deal(3);
