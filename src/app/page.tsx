@@ -107,8 +107,8 @@ export default function Home() {
             </div>
             <div className="space-y-4">
               <Image
-                src="/logo-section.png"
-                alt="Svarka Logo"
+                src="/poker-chips.png"
+                alt="Poker Chips"
                 width={600}
                 height={300}
                 className="rounded-lg"
