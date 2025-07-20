@@ -87,6 +87,43 @@ export default function Home() {
           </Card>
         </div>
       </section>
+
+      <section id="about-us" className="container py-24 sm:py-32">
+        <div className="bg-card text-card-foreground p-8 rounded-lg shadow-lg">
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h2 className="text-3xl font-bold">
+                Играйте сварка с нас, забавлявайте се с приятели!
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                Сварката е игра на карти, която подхожда на темперамента на
+                балканските народи. Изключително развлекателна и емоционална
+                игра, в която целта е сборът от картите на един играч да е
+                по-голям от този на другите играчи, за да спечели. Блъфовете
+                са препоръчителни. Така се изразява чувството за хумор на
+                играчите и емоцията е 100%. Играе се сравнително лесно,
+                което я прави и толкова популярна.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <Image
+                src="https://placehold.co/600x300/000000/FFFFFF?text=Svarka"
+                alt="Playing cards"
+                width={600}
+                height={300}
+                className="rounded-lg"
+              />
+              <Image
+                src="https://placehold.co/600x300/000000/FFFFFF?text=Poker+Chips"
+                alt="Poker chips"
+                width={600}
+                height={300}
+                className="rounded-lg"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
     </>
   );
 }
