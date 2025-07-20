@@ -8,9 +8,16 @@ import {
 } from '@/lib/game-logic/engine';
 import { GameState, Player, Card, PlayerAction } from '@/lib/game-logic/types';
 import { useAuth } from '@/hooks/useAuth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+
+interface Message {
+  timestamp: string;
+  username: string;
+  text: string;
+  isSystem: boolean;
+}
 
 const CardComponent = ({ card }: { card: Card }) => (
   <div className="bg-white text-black rounded-md p-2 w-16 h-24 flex flex-col justify-between">
@@ -23,6 +30,9 @@ const GameTable = () => {
   const { user } = useAuth();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [betAmount, setBetAmount] = useState(0);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -30,8 +40,24 @@ const GameTable = () => {
       const newGame = createNewGame(playerNames);
       const gameWithCards = dealCards(newGame);
       setGameState(gameWithCards);
+      setMessages([
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          username: 'Система',
+          text: 'Масата е отворена.',
+          isSystem: true,
+        },
+      ]);
     }
   }, [user]);
+
+  useEffect(() => {
+    // Scroll chat to bottom
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
 
   useEffect(() => {
     if (!gameState || !user) return;
@@ -70,6 +96,26 @@ const GameTable = () => {
         const resetGame = dealCards(newGameState);
         setGameState(resetGame);
       }, 5000);
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (chatInput.trim() === '' || !user) return;
+
+    const newMessage: Message = {
+      timestamp: new Date().toLocaleTimeString(),
+      username: user.username,
+      text: chatInput,
+      isSystem: false,
+    };
+
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setChatInput('');
+  };
+
+  const handleChatKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSendMessage();
     }
   };
 
@@ -180,13 +226,18 @@ const GameTable = () => {
       <div className="lg:col-span-1">
         <div className="bg-card text-card-foreground p-4 rounded-lg shadow-lg h-full flex flex-col">
           <h2 className="text-2xl font-bold text-secondary mb-4 border-b border-secondary/20 pb-2">Чат</h2>
-          <div className="flex-grow space-y-2 overflow-y-auto">
-            <p><span className="text-muted-foreground">21:39:34</span> <span className="text-primary">Система:</span> Масата е отворена.</p>
-            <p><span className="text-muted-foreground">21:39:34</span> <span className="text-secondary">{user?.username}:</span> Добре дошли!</p>
+          <div ref={chatContainerRef} className="flex-grow space-y-2 overflow-y-auto">
+            {messages.map((msg, index) => (
+              <p key={index}>
+                <span className="text-muted-foreground">{msg.timestamp}</span>{' '}
+                <span className={msg.isSystem ? 'text-primary' : 'text-secondary'}>{msg.username}:</span>{' '}
+                {msg.text}
+              </p>
+            ))}
           </div>
           <div className="mt-4 flex space-x-2">
-            <Input placeholder="Вашето съобщение..." className="bg-input"/>
-            <Button>Изпрати</Button>
+            <Input placeholder="Вашето съобщение..." className="bg-input" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={handleChatKeyDown} />
+            <Button onClick={handleSendMessage}>Изпрати</Button>
           </div>
         </div>
       </div>
