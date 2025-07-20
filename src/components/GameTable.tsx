@@ -7,17 +7,19 @@ import {
   determineWinner,
 } from '@/lib/game-logic/engine';
 import { GameState, Player } from '@/lib/game-logic/types';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from './ui/button';
 import { Card as UICard, CardContent } from './ui/card';
 
 const GameTable = () => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [winner, setWinner] = useState<Player | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    const newGame = createNewGame(['bojodanchev', 'Player 2']);
+    const newGame = createNewGame([user?.username || 'Player 1', 'Player 2']);
     setGameState(newGame);
-  }, []);
+  }, [user]);
 
   const handleDeal = () => {
     if (gameState) {
@@ -47,7 +49,7 @@ const GameTable = () => {
           Player 2
         </div>
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
-          bojodanchev
+          {user?.username || 'Player 1'}
         </div>
       </div>
       <div className="w-full lg:w-1/3 space-y-4">
@@ -62,7 +64,7 @@ const GameTable = () => {
             <h2 className="text-xl font-bold mb-2">Чат</h2>
             <div className="h-48 bg-muted rounded-md p-2">
               <p>21:39:34 Масата е отворена</p>
-              <p>21:39:34 bojodanchev отвори масата.</p>
+              <p>21:39:34 {user?.username || 'bojodanchev'} отвори масата.</p>
             </div>
           </CardContent>
         </UICard>

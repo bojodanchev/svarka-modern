@@ -1,8 +1,13 @@
+'use client';
+
+import { useAuth } from '@/hooks/useAuth';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from './ui/button';
 
 const Header = () => {
+  const { user, logout } = useAuth();
+
   return (
     <header className="bg-background border-b shadow-sm">
       <div className="container mx-auto flex justify-between items-center p-4">
@@ -58,12 +63,23 @@ const Header = () => {
             Контакти
           </Link>
           <div className="flex items-center space-x-2">
-            <Link href="/login">
-              <Button variant="outline">Вход</Button>
-            </Link>
-            <Link href="/register">
-              <Button>Регистрация</Button>
-            </Link>
+            {user ? (
+              <>
+                <span>Здравей, {user.username}!</span>
+                <Button onClick={logout} variant="outline">
+                  Изход
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="outline">Вход</Button>
+                </Link>
+                <Link href="/register">
+                  <Button>Регистрация</Button>
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       </div>

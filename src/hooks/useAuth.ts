@@ -1,26 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+interface User {
+  username: string;
+}
 
 export const useAuth = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (user) {
-      setIsLoggedIn(true);
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
   }, []);
 
-  const login = () => {
-    localStorage.setItem('user', 'loggedIn');
-    setIsLoggedIn(true);
-  };
+  const login = useCallback((username: string) => {
+    const newUser = { username };
+    localStorage.setItem('user', JSON.stringify(newUser));
+    setUser(newUser);
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('user');
-    setIsLoggedIn(false);
-  };
+    setUser(null);
+  }, []);
 
-  return { isLoggedIn, login, logout };
+  return { user, isLoggedIn: !!user, login, logout };
 }; 
