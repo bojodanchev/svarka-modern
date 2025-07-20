@@ -24,7 +24,7 @@ export const createNewGame = (playerNames: string[]): GameState => {
 
 export const dealCards = (gameState: GameState): GameState => {
   const deck = shuffleDeck(createDeck());
-  const players = gameState.players.map(p => ({ ...p, hand: [] }));
+  const players = gameState.players.map(p => ({ ...p, hand: [] as Card[] }));
 
   for (let i = 0; i < 3; i++) {
     for (const player of players) {
