@@ -9,7 +9,7 @@ const LoginPage = () => {
   const router = useRouter();
 
   const handleLogin = () => {
-    login();
+    login('bojodanchev');
     router.push('/tables');
   };
 
