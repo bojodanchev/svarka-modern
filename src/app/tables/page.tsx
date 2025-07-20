@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import Link from 'next/link';
 
 interface GameTable {
   id: number;
@@ -49,8 +50,14 @@ const TablesPage = () => {
                   {table.minBet} / {table.maxBet}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="outline" className="mr-2">Отвори</Button>
-                  <Button>Влез</Button>
+                  <Link href="/play">
+                    <Button variant="outline" className="mr-2">
+                      Отвори
+                    </Button>
+                  </Link>
+                  <Link href="/play">
+                    <Button>Влез</Button>
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}
