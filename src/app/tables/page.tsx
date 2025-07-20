@@ -1,12 +1,5 @@
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 
 interface GameTable {
@@ -27,42 +20,30 @@ const mockTables: GameTable[] = [
 
 const TablesPage = () => {
   return (
-    <div className="container mx-auto p-4 py-8">
-      <h1 className="text-4xl font-extrabold text-center mb-6">Маси за игра</h1>
-      <div className="max-w-4xl mx-auto bg-card text-card-foreground p-8 rounded-lg shadow-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Име на масата</TableHead>
-              <TableHead>Играчи</TableHead>
-              <TableHead>Мин./Макс. залог</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {mockTables.map(table => (
-              <TableRow key={table.id}>
-                <TableCell className="font-medium">{table.name}</TableCell>
-                <TableCell>
-                  {table.players} / {table.maxPlayers}
-                </TableCell>
-                <TableCell>
-                  {table.minBet} / {table.maxBet}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Link href="/play">
-                    <Button variant="outline" className="mr-2">
-                      Отвори
-                    </Button>
-                  </Link>
-                  <Link href="/play">
-                    <Button>Влез</Button>
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+    <div className="container mx-auto p-4 py-8 md:py-12">
+      <h1 className="text-4xl font-bold text-center mb-8 text-primary">Маси за игра</h1>
+      <div className="max-w-5xl mx-auto space-y-4">
+        {mockTables.map(table => (
+          <Card key={table.id} className="bg-card/80 backdrop-blur-sm border-secondary/20 hover:border-primary transition-all">
+            <div className="grid grid-cols-2 md:grid-cols-4 items-center p-4 gap-4">
+              <div className="font-medium text-lg">{table.name}</div>
+              <div className="text-muted-foreground">
+                <span className="font-semibold">{table.players}</span> / {table.maxPlayers} играчи
+              </div>
+              <div className="text-muted-foreground">
+                <span className="font-semibold">${table.minBet}</span> / ${table.maxBet}
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Link href="/play">
+                  <Button variant="outline">Отвори</Button>
+                </Link>
+                <Link href="/play">
+                  <Button>Влез</Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
     </div>
   );
