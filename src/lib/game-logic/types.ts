@@ -14,6 +14,7 @@ export interface Player {
   currentBet: number;
   isDealer: boolean;
   hasFolded: boolean;
+  lastAction: string | null;
 }
 
 export interface GameState {
@@ -21,5 +22,14 @@ export interface GameState {
   deck: Card[];
   pot: number;
   currentPlayerIndex: number;
-  currentPhase: 'pre-deal' | 'betting' | 'showdown';
-} 
+  currentPhase: 'pre-deal' | 'betting' | 'showdown' | 'end-round';
+  bettingRound: number;
+  lastBet: number;
+  minRaise: number;
+}
+
+export type PlayerAction =
+  | { type: 'fold' }
+  | { type: 'call' }
+  | { type: 'bet'; amount: number }
+  | { type: 'raise'; amount: number }; 
