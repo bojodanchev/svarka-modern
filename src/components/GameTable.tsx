@@ -1,7 +1,7 @@
 'use client';
 
-import { Game } from '@/lib/game-logic-js/game.js';
-import { PLAYER_ACTIONS } from '@/lib/game-logic-js/constants.js';
+import { Game } from '@/lib/game-logic/engine';
+import { GameState, PlayerAction, Card } from '@/lib/game-logic/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
@@ -14,7 +14,7 @@ interface Message {
   isSystem: boolean;
 }
 
-const CardComponent = ({ card }) => (
+const CardComponent = ({ card }: { card: Card }) => (
   <div className="bg-white text-black rounded-md p-2 w-16 h-24 flex flex-col justify-between">
     <span className="text-xl">{card.rank}</span>
     <span className="text-2xl">{card.suit}</span>
@@ -23,17 +23,17 @@ const CardComponent = ({ card }) => (
 
 const GameTable = () => {
   const { user } = useAuth();
-  const [game, setGame] = useState(null);
-  const [gameState, setGameState] = useState(null);
+  const [game, setGame] = useState<Game | null>(null);
+  const [gameState, setGameState] = useState<GameState | null>(null);
   const [betAmount, setBetAmount] = useState(20);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const chatContainerRef = useRef(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
       const playerNames = [user.username, 'Player 2', 'Player 3', 'Player 4'];
-      const newGame = new Game(playerNames, `player-0`);
+      const newGame = new Game(playerNames, 'player-0');
       newGame.startNewRound();
       setGame(newGame);
       setGameState(newGame.getState());
@@ -58,18 +58,13 @@ const GameTable = () => {
     if (!game || !gameState || !user) return;
 
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    
+
     if (currentPlayer.isAI && gameState.phase === 'betting') {
-      const aiAction = () => {
-        if (Math.random() < 0.2) {
-            return { type: PLAYER_ACTIONS.FOLD };
-        }
-        return { type: PLAYER_ACTIONS.CALL };
-      };
+      const aiAction: PlayerAction =
+        Math.random() < 0.2 ? { type: 'fold' } : { type: 'call' };
 
       const timer = setTimeout(() => {
-        const action = aiAction();
-        const updatedState = game.handlePlayerAction(currentPlayer.id, action.type);
+        const updatedState = game.handlePlayerAction(currentPlayer.id, aiAction);
         setGameState(updatedState);
       }, 2000);
 
@@ -77,17 +72,16 @@ const GameTable = () => {
     }
   }, [game, gameState, user]);
 
-
-  const onPlayerAction = (actionType, amount = 0) => {
+  const onPlayerAction = (action: PlayerAction) => {
     if (!game || !gameState) return;
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    const updatedState = game.handlePlayerAction(currentPlayer.id, actionType, amount);
+    const updatedState = game.handlePlayerAction(currentPlayer.id, action);
     setGameState(updatedState);
   };
-  
+
   const handleSendMessage = () => {
     if (chatInput.trim() === '' || !user) return;
-    const newMessage = {
+    const newMessage: Message = {
       timestamp: new Date().toLocaleTimeString(),
       username: user.username,
       text: chatInput,
@@ -97,7 +91,7 @@ const GameTable = () => {
     setChatInput('');
   };
 
-  const handleChatKeyDown = (event) => {
+  const handleChatKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       handleSendMessage();
     }
@@ -174,56 +168,70 @@ const GameTable = () => {
               onChange={(e) => setBetAmount(parseInt(e.target.value, 10))}
               className="w-24 bg-input text-foreground"
             />
-            <Button
-              onClick={() => onPlayerAction(PLAYER_ACTIONS.BET, betAmount)}
-            >
+            <Button onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}>
               Bet
             </Button>
             <Button
-              onClick={() =>
-                onPlayerAction(PLAYER_ACTIONS.RAISE, gameState.lastBet + betAmount)
-              }
+              onClick={() => onPlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}
             >
               Raise
             </Button>
-            <Button onClick={() => onPlayerAction(PLAYER_ACTIONS.CALL)}>
-              Call
-            </Button>
-            <Button
-              onClick={() => onPlayerAction(PLAYER_ACTIONS.FOLD)}
-              variant="destructive"
-            >
+            <Button onClick={() => onPlayerAction({ type: 'call' })}>Call</Button>
+            <Button onClick={() => onPlayerAction({ type: 'fold' })} variant="destructive">
               Fold
             </Button>
           </div>
         )}
-        
-        {gameState.phase === 'round-over' && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/90 p-8 rounded-lg z-30 text-center">
-                <h3 className="text-2xl font-bold text-secondary">Round Over!</h3>
-                <p className="text-xl mt-2">Winner: {gameState.roundWinner?.name}</p>
-                <Button className="mt-4" onClick={() => {
-                    const updatedState = game.startNewRound();
-                    setGameState(updatedState);
-                }}>New Round</Button>
-            </div>
-        )}
 
+        {gameState.phase === 'round-over' && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/90 p-8 rounded-lg z-30 text-center">
+            <h3 className="text-2xl font-bold text-secondary">Round Over!</h3>
+            <p className="text-xl mt-2">
+              Winner: {gameState.roundWinner?.name}
+            </p>
+            <Button
+              className="mt-4"
+              onClick={() => {
+                const updatedState = game!.startNewRound();
+                setGameState(updatedState);
+              }}
+            >
+              New Round
+            </Button>
+          </div>
+        )}
       </div>
       <div className="lg:col-span-1">
         <div className="bg-card text-card-foreground p-4 rounded-lg shadow-lg h-full flex flex-col">
-          <h2 className="text-2xl font-bold text-secondary mb-4 border-b border-secondary/20 pb-2">Чат</h2>
-          <div ref={chatContainerRef} className="flex-grow space-y-2 overflow-y-auto">
+          <h2 className="text-2xl font-bold text-secondary mb-4 border-b border-secondary/20 pb-2">
+            Чат
+          </h2>
+          <div
+            ref={chatContainerRef}
+            className="flex-grow space-y-2 overflow-y-auto"
+          >
             {messages.map((msg, index) => (
               <p key={index}>
                 <span className="text-muted-foreground">{msg.timestamp}</span>{' '}
-                <span className={msg.isSystem ? 'text-primary' : 'text-secondary'}>{msg.username}:</span>{' '}
+                <span
+                  className={
+                    msg.isSystem ? 'text-primary' : 'text-secondary'
+                  }
+                >
+                  {msg.username}:
+                </span>{' '}
                 {msg.text}
               </p>
             ))}
           </div>
           <div className="mt-4 flex space-x-2">
-            <Input placeholder="Вашето съобщение..." className="bg-input" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={handleChatKeyDown} />
+            <Input
+              placeholder="Вашето съобщение..."
+              className="bg-input"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={handleChatKeyDown}
+            />
             <Button onClick={handleSendMessage}>Изпрати</Button>
           </div>
         </div>
