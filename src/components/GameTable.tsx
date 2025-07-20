@@ -1,7 +1,7 @@
 'use client';
 
 import { Game } from '@/lib/game-logic/engine';
-import { GameState, PlayerAction, Card } from '@/lib/game-logic/types';
+import { GameState, PlayerAction, Card, PlayerActionType } from '@/lib/game-logic/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
@@ -21,6 +21,23 @@ const CardComponent = ({ card }: { card: Card }) => (
   </div>
 );
 
+const translateAction = (action: PlayerActionType | null): string => {
+  if (!action) return '';
+  switch (action) {
+    case 'fold':
+      return 'Пас';
+    case 'call':
+      return 'Плащам';
+    case 'bet':
+      return 'Залагам';
+    case 'raise':
+      return 'Вдигам';
+    default:
+      return '';
+  }
+};
+
+
 const GameTable = () => {
   const { user } = useAuth();
   const [game, setGame] = useState<Game | null>(null);
@@ -32,7 +49,7 @@ const GameTable = () => {
 
   useEffect(() => {
     if (user) {
-      const playerNames = [user.username, 'Player 2', 'Player 3', 'Player 4'];
+      const playerNames = [user.username, 'Мария', 'Петър', 'Георги'];
       const newGame = new Game(playerNames, 'player-0');
       newGame.startNewRound();
       setGame(newGame);
@@ -65,14 +82,14 @@ const GameTable = () => {
         // Raise with a strong hand (score > 20)
         if (score > 20 && Math.random() > 0.3) {
           const raiseAmount = gameState.lastBet + 20; // Simple raise logic
-          return { type: 'raise', amount: raiseAmount };
+          return { type: 'raise', amount: raiseAmount } as PlayerAction;
         }
         // Call with a decent hand
         if (score > 10) {
-          return { type: 'call' };
+          return { type: 'call' } as PlayerAction;
         }
         // Fold with a weak hand
-        return { type: 'fold' };
+        return { type: 'fold' } as PlayerAction;
       };
 
       const timer = setTimeout(() => {
@@ -123,7 +140,7 @@ const GameTable = () => {
         <div className="absolute w-[95%] h-[75%] bg-primary rounded-[50%] shadow-2xl border-4 border-secondary/50"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-10">
           <h2 className="text-3xl font-bold mb-4 text-secondary">
-            Pot: ${gameState.pot}
+            Пот: ${gameState.pot}
           </h2>
         </div>
         {gameState.players.map((player, index) => {
@@ -149,18 +166,18 @@ const GameTable = () => {
                 <h3 className="font-bold text-lg text-secondary">
                   {player.name}
                 </h3>
-                <p>Balance: ${player.balance}</p>
+                <p>Баланс: ${player.balance}</p>
                 {player.currentBet > 0 && (
                   <p className="text-primary-foreground">
-                    Bet: ${player.currentBet}
+                    Залог: ${player.currentBet}
                   </p>
                 )}
                 {player.hasFolded && (
-                  <p className="text-destructive">Folded</p>
+                  <p className="text-destructive">Пас</p>
                 )}
                 {player.lastAction && (
                   <p className="text-muted-foreground text-sm">
-                    Action: {player.lastAction}
+                    Действие: {translateAction(player.lastAction)}
                   </p>
                 )}
                 <div className="flex justify-center space-x-2 mt-2 h-24">
@@ -182,25 +199,25 @@ const GameTable = () => {
               className="w-24 bg-input text-foreground"
             />
             <Button onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}>
-              Bet
+              Заложи
             </Button>
             <Button
               onClick={() => onPlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}
             >
-              Raise
+              Вдигни
             </Button>
-            <Button onClick={() => onPlayerAction({ type: 'call' })}>Call</Button>
+            <Button onClick={() => onPlayerAction({ type: 'call' })}>Плати</Button>
             <Button onClick={() => onPlayerAction({ type: 'fold' })} variant="destructive">
-              Fold
+              Пас
             </Button>
           </div>
         )}
 
         {gameState.phase === 'round-over' && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/90 p-8 rounded-lg z-30 text-center">
-            <h3 className="text-2xl font-bold text-secondary">Round Over!</h3>
+            <h3 className="text-2xl font-bold text-secondary">Край на рунда!</h3>
             <p className="text-xl mt-2">
-              Winner: {gameState.roundWinner?.name}
+              Победител: {gameState.roundWinner?.name}
             </p>
             <Button
               className="mt-4"
@@ -209,7 +226,7 @@ const GameTable = () => {
                 setGameState(updatedState);
               }}
             >
-              New Round
+              Нов рунд
             </Button>
           </div>
         )}
