@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Medal, Dices, Star } from 'lucide-react';
+import StepCard from '@/components/StepCard';
+import { Medal, Dices, Star, Heart, Spade } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -52,39 +52,24 @@ export default function Home() {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="grid gap-4 place-items-center">
-                <Medal size={48} />
-                Регистрирай се!
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              Създайте си безплатен акаунт, за да можете да играете.
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="grid gap-4 place-items-center">
-                <Dices size={48} />
-                Играй Сварка
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              Присъединете се към маса или създайте своя собствена.
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="grid gap-4 place-items-center">
-                <Star size={48} />
-                Печели награди
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              Състезавайте се с други играчи и печелете виртуални награди.
-            </CardContent>
-          </Card>
+          <StepCard
+            number="1"
+            title="Регистрирай се!"
+            description="Създайте си безплатен акаунт, за да можете да играете."
+            icon={<Heart />}
+          />
+          <StepCard
+            number="2"
+            title="Играй Сварка"
+            description="Присъединете се към маса или създайте своя собствена."
+            icon={<Spade />}
+          />
+          <StepCard
+            number="3"
+            title="Печели награди"
+            description="Състезавайте се с други играчи и печелете виртуални награди."
+            icon={<Star />}
+          />
         </div>
       </section>
 
