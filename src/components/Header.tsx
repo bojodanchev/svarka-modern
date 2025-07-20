@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from './ui/button';
 
@@ -5,11 +6,13 @@ const Header = () => {
   return (
     <header className="bg-background border-b shadow-sm">
       <div className="container mx-auto flex justify-between items-center p-4">
-        <Link
-          href="/"
-          className="text-4xl font-extrabold tracking-tight text-primary"
-        >
-          Сварка
+        <Link href="/">
+          <Image
+            src="/logo.png"
+            alt="Svarka.bg Logo"
+            width={120}
+            height={40}
+          />
         </Link>
         <nav className="flex items-center space-x-6">
           <Link
