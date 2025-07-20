@@ -81,9 +81,9 @@ const GameTable = () => {
   const isMyTurn = currentPlayer.name === user?.username;
 
   return (
-    <div className="bg-green-800 text-white p-8 rounded-lg shadow-2xl relative min-h-[800px]">
+    <div className="bg-background text-foreground p-8 rounded-lg shadow-2xl relative min-h-[800px]">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-        <h2 className="text-3xl font-bold mb-4">Pot: ${gameState.pot}</h2>
+        <h2 className="text-3xl font-bold mb-4 text-secondary">Pot: ${gameState.pot}</h2>
         <div className="flex space-x-2">
           {/* Community cards or other info can go here */}
         </div>
@@ -100,15 +100,15 @@ const GameTable = () => {
         return (
           <div
             key={player.id}
-            className={`absolute ${position} w-64 text-center p-4 bg-green-900 rounded-lg border-2 ${
-              gameState.currentPlayerIndex === index ? 'border-yellow-400' : 'border-transparent'
+            className={`absolute ${position} w-64 text-center p-4 bg-card rounded-lg border-2 ${
+              gameState.currentPlayerIndex === index ? 'border-primary' : 'border-secondary/20'
             }`}
           >
-            <h3 className="font-bold text-lg">{player.name}</h3>
+            <h3 className="font-bold text-lg text-secondary">{player.name}</h3>
             <p>Balance: ${player.balance}</p>
-            {player.currentBet > 0 && <p>Bet: ${player.currentBet}</p>}
-            {player.hasFolded && <p className="text-red-500">Folded</p>}
-            {player.lastAction && <p className="text-gray-400 text-sm">Action: {player.lastAction}</p>}
+            {player.currentBet > 0 && <p className="text-primary-foreground">Bet: ${player.currentBet}</p>}
+            {player.hasFolded && <p className="text-destructive">Folded</p>}
+            {player.lastAction && <p className="text-muted-foreground text-sm">Action: {player.lastAction}</p>}
 
             <div className="flex justify-center space-x-2 mt-2 h-24">
               {player.hand.map((card, i) => (
@@ -120,12 +120,12 @@ const GameTable = () => {
       })}
 
       {isMyTurn && (
-        <div className="absolute bottom-40 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-gray-900 p-4 rounded-lg">
+        <div className="absolute bottom-40 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-card/80 backdrop-blur-sm p-4 rounded-lg border border-secondary/20">
           <Input
             type="number"
             value={betAmount}
             onChange={(e) => setBetAmount(parseInt(e.target.value, 10))}
-            className="w-24 bg-gray-800 text-white"
+            className="w-24 bg-input text-foreground"
             min={gameState.minRaise}
           />
           <Button onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}>

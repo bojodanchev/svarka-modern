@@ -9,7 +9,7 @@ const Header = () => {
   const { user, logout, isLoading } = useAuth();
 
   return (
-    <header className="bg-background border-b shadow-sm">
+    <header className="bg-card border-b border-secondary/20 shadow-lg">
       <div className="container mx-auto flex justify-between items-center p-4">
         <Link href="/">
           <Image
@@ -65,7 +65,7 @@ const Header = () => {
           <div className="flex items-center space-x-2">
             {isLoading ? null : user ? (
               <>
-                <span>Здравей, {user.username}!</span>
+                <span className="text-secondary">Здравей, {user.username}!</span>
                 <Button onClick={logout} variant="outline">
                   Изход
                 </Button>
