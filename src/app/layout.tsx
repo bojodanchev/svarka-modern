@@ -13,6 +13,18 @@ const fontSans = FontSans({
 export const metadata: Metadata = {
   title: 'Svarka.bg - The best place to play Svarka online',
   description: 'Play the Bulgarian card game Svarka online with your friends.',
+  openGraph: {
+    title: 'Svarka.bg - The best place to play Svarka online',
+    description: 'Play the Bulgarian card game Svarka online with your friends.',
+    images: [
+      {
+        url: '/logo.png',
+        width: 120,
+        height: 40,
+        alt: 'Svarka.bg Logo',
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
