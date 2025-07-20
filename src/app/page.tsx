@@ -107,15 +107,15 @@ export default function Home() {
             </div>
             <div className="space-y-4">
               <Image
-                src="https://placehold.co/600x300/000000/FFFFFF?text=Svarka"
-                alt="Playing cards"
+                src="/logo-section.png"
+                alt="Svarka Logo"
                 width={600}
                 height={300}
                 className="rounded-lg"
               />
               <Image
-                src="https://placehold.co/600x300/000000/FFFFFF?text=Poker+Chips"
-                alt="Poker chips"
+                src="/playing-cards.png"
+                alt="Playing cards"
                 width={600}
                 height={300}
                 className="rounded-lg"
