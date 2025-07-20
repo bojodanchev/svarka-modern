@@ -1,12 +1,7 @@
 'use client';
 
-import {
-  createNewGame,
-  dealCards,
-  handlePlayerAction,
-  determineWinner,
-} from '@/lib/game-logic/engine';
-import { GameState, Player, Card, PlayerAction } from '@/lib/game-logic/types';
+import { Game } from '@/lib/game-logic-js/game.js';
+import { PLAYER_ACTIONS } from '@/lib/game-logic-js/constants.js';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
@@ -19,7 +14,7 @@ interface Message {
   isSystem: boolean;
 }
 
-const CardComponent = ({ card }: { card: Card }) => (
+const CardComponent = ({ card }) => (
   <div className="bg-white text-black rounded-md p-2 w-16 h-24 flex flex-col justify-between">
     <span className="text-xl">{card.rank}</span>
     <span className="text-2xl">{card.suit}</span>
@@ -28,18 +23,20 @@ const CardComponent = ({ card }: { card: Card }) => (
 
 const GameTable = () => {
   const { user } = useAuth();
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [betAmount, setBetAmount] = useState(0);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [game, setGame] = useState(null);
+  const [gameState, setGameState] = useState(null);
+  const [betAmount, setBetAmount] = useState(20);
+  const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef(null);
 
   useEffect(() => {
     if (user) {
       const playerNames = [user.username, 'Player 2', 'Player 3', 'Player 4'];
-      const newGame = createNewGame(playerNames);
-      const gameWithCards = dealCards(newGame);
-      setGameState(gameWithCards);
+      const newGame = new Game(playerNames, `player-0`);
+      newGame.startNewRound();
+      setGame(newGame);
+      setGameState(newGame.getState());
       setMessages([
         {
           timestamp: new Date().toLocaleTimeString(),
@@ -52,68 +49,55 @@ const GameTable = () => {
   }, [user]);
 
   useEffect(() => {
-    // Scroll chat to bottom
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-
   useEffect(() => {
-    if (!gameState || !user) return;
+    if (!game || !gameState || !user) return;
 
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    const isAITurn = currentPlayer.name !== user.username;
-
-    if (isAITurn && gameState.currentPhase === 'betting') {
-      const aiAction = (): PlayerAction => {
-        // Simple AI: 50% chance to fold, otherwise call.
-        if (Math.random() < 0.5) {
-          return { type: 'fold' };
+    
+    if (currentPlayer.isAI && gameState.phase === 'betting') {
+      const aiAction = () => {
+        if (Math.random() < 0.2) {
+            return { type: PLAYER_ACTIONS.FOLD };
         }
-        return { type: 'call' };
+        return { type: PLAYER_ACTIONS.CALL };
       };
 
       const timer = setTimeout(() => {
-        onPlayerAction(aiAction());
-      }, 2000); // AI "thinks" for 2 seconds
+        const action = aiAction();
+        const updatedState = game.handlePlayerAction(currentPlayer.id, action.type);
+        setGameState(updatedState);
+      }, 2000);
 
       return () => clearTimeout(timer);
     }
-  }, [gameState, user]);
+  }, [game, gameState, user]);
 
-  const onPlayerAction = (action: PlayerAction) => {
-    if (!gameState) return;
-    const newGameState = handlePlayerAction(gameState, action);
-    setGameState(newGameState);
 
-    if (newGameState.currentPhase === 'showdown') {
-      const winner = determineWinner(newGameState);
-      // You can add logic here to display the winner, update balances, etc.
-      console.log('Winner:', winner);
-      // For now, let's just start a new round after a delay
-      setTimeout(() => {
-        const resetGame = dealCards(newGameState);
-        setGameState(resetGame);
-      }, 5000);
-    }
+  const onPlayerAction = (actionType, amount = 0) => {
+    if (!game || !gameState) return;
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    const updatedState = game.handlePlayerAction(currentPlayer.id, actionType, amount);
+    setGameState(updatedState);
   };
-
+  
   const handleSendMessage = () => {
     if (chatInput.trim() === '' || !user) return;
-
-    const newMessage: Message = {
+    const newMessage = {
       timestamp: new Date().toLocaleTimeString(),
       username: user.username,
       text: chatInput,
       isSystem: false,
     };
-
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
     setChatInput('');
   };
 
-  const handleChatKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleChatKeyDown = (event) => {
     if (event.key === 'Enter') {
       handleSendMessage();
     }
@@ -124,30 +108,24 @@ const GameTable = () => {
   }
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const isMyTurn = currentPlayer.name === user?.username;
+  const isMyTurn = !currentPlayer.isAI;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
-      {/* Game Table Section */}
       <div className="lg:col-span-2 bg-background text-foreground p-8 rounded-lg shadow-2xl relative min-h-[800px] flex items-center justify-center">
-        {/* The Oval Table */}
         <div className="absolute w-[95%] h-[75%] bg-primary rounded-[50%] shadow-2xl border-4 border-secondary/50"></div>
-
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-10">
           <h2 className="text-3xl font-bold mb-4 text-secondary">
             Pot: ${gameState.pot}
           </h2>
         </div>
-
-        {/* Players positioned around the table */}
         {gameState.players.map((player, index) => {
           const positions = [
-            { top: '85%', left: '50%', transform: 'translate(-50%, -50%)' }, // Bottom
-            { top: '50%', left: '10%', transform: 'translate(-50%, -50%)' }, // Left
-            { top: '15%', left: '50%', transform: 'translate(-50%, -50%)' }, // Top
-            { top: '50%', left: '90%', transform: 'translate(-50%, -50%)' }, // Right
+            { top: '85%', left: '50%', transform: 'translate(-50%, -50%)' },
+            { top: '50%', left: '10%', transform: 'translate(-50%, -50%)' },
+            { top: '15%', left: '50%', transform: 'translate(-50%, -50%)' },
+            { top: '50%', left: '90%', transform: 'translate(-50%, -50%)' },
           ];
-
           return (
             <div
               key={player.id}
@@ -188,41 +166,50 @@ const GameTable = () => {
           );
         })}
 
-        {isMyTurn && (
+        {isMyTurn && gameState.phase === 'betting' && (
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-card/80 backdrop-blur-sm p-4 rounded-lg border border-secondary/20 z-20">
             <Input
               type="number"
               value={betAmount}
               onChange={(e) => setBetAmount(parseInt(e.target.value, 10))}
               className="w-24 bg-input text-foreground"
-              min={gameState.minRaise}
             />
             <Button
-              onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}
+              onClick={() => onPlayerAction(PLAYER_ACTIONS.BET, betAmount)}
             >
               Bet
             </Button>
             <Button
               onClick={() =>
-                onPlayerAction({ type: 'raise', amount: betAmount })
+                onPlayerAction(PLAYER_ACTIONS.RAISE, gameState.lastBet + betAmount)
               }
             >
               Raise
             </Button>
-            <Button onClick={() => onPlayerAction({ type: 'call' })}>
+            <Button onClick={() => onPlayerAction(PLAYER_ACTIONS.CALL)}>
               Call
             </Button>
             <Button
-              onClick={() => onPlayerAction({ type: 'fold' })}
+              onClick={() => onPlayerAction(PLAYER_ACTIONS.FOLD)}
               variant="destructive"
             >
               Fold
             </Button>
           </div>
         )}
-      </div>
+        
+        {gameState.phase === 'round-over' && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/90 p-8 rounded-lg z-30 text-center">
+                <h3 className="text-2xl font-bold text-secondary">Round Over!</h3>
+                <p className="text-xl mt-2">Winner: {gameState.roundWinner?.name}</p>
+                <Button className="mt-4" onClick={() => {
+                    const updatedState = game.startNewRound();
+                    setGameState(updatedState);
+                }}>New Round</Button>
+            </div>
+        )}
 
-      {/* Chat Section */}
+      </div>
       <div className="lg:col-span-1">
         <div className="bg-card text-card-foreground p-4 rounded-lg shadow-lg h-full flex flex-col">
           <h2 className="text-2xl font-bold text-secondary mb-4 border-b border-secondary/20 pb-2">Чат</h2>
