@@ -11,7 +11,7 @@ export default function Home() {
         <div className="text-center lg:text-start space-y-6">
           <main className="text-5xl md:text-6xl font-bold">
             <h1 className="inline">
-              <span className="inline bg-gradient-to-r from-[#F596D3]  to-[#D247BF] text-transparent bg-clip-text">
+              <span className="inline bg-gradient-to-r from-[#FF0000]  to-[#8B0000] text-transparent bg-clip-text">
                 Сварка
               </span>{' '}
               Онлайн
@@ -34,8 +34,8 @@ export default function Home() {
 
         <div className="z-10">
           <Image
-            src="https://placehold.co/600x400/000000/FFFFFF?text=Svarka"
-            alt="Svarka Game"
+            src="https://i.ytimg.com/vi/s-93-iFE3oI/maxresdefault.jpg"
+            alt="Ball of cards"
             width={600}
             height={400}
             className="rounded-lg"
