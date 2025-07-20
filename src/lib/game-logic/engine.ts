@@ -31,7 +31,7 @@ export class Game {
   }
 
   getState(): GameState {
-    return this.state;
+    return this.deepCloneState();
   }
 
   startNewRound() {
@@ -151,5 +151,10 @@ export class Game {
     }
 
     this.state.phase = 'round-over';
+  }
+
+  private deepCloneState(): GameState {
+    // Basic deep clone for serializable state. More complex state might need a library like lodash.
+    return JSON.parse(JSON.stringify(this.state));
   }
 }
