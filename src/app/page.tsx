@@ -90,7 +90,7 @@ export default function Home() {
 
       <section id="about-us" className="container py-24 sm:py-32">
         <div className="bg-card text-card-foreground p-8 rounded-lg shadow-lg">
-          <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
             <div className="space-y-4">
               <h2 className="text-3xl font-bold">
                 Играйте сварка с нас, забавлявайте се с приятели!
@@ -106,20 +106,22 @@ export default function Home() {
               </p>
             </div>
             <div className="space-y-4">
-              <Image
-                src="/poker-chips.png"
-                alt="Poker Chips"
-                width={600}
-                height={300}
-                className="rounded-lg"
-              />
-              <Image
-                src="/playing-cards.png"
-                alt="Playing cards"
-                width={600}
-                height={300}
-                className="rounded-lg"
-              />
+              <div className="relative h-48 w-full overflow-hidden rounded-lg">
+                <Image
+                  src="/poker-chips.png"
+                  alt="Poker Chips"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="relative h-48 w-full overflow-hidden rounded-lg">
+                <Image
+                  src="/playing-cards.png"
+                  alt="Playing cards"
+                  fill
+                  className="object-cover"
+                />
+              </div>
             </div>
           </div>
         </div>
