@@ -9,7 +9,7 @@ const Header = () => {
           href="/"
           className="text-4xl font-extrabold tracking-tight text-primary"
         >
-          SVarka
+          Сварка
         </Link>
         <nav className="flex items-center space-x-6">
           <Link

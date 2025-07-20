@@ -34,7 +34,7 @@ export default function Home() {
 
         <div className="z-10">
           <Image
-            src="https://i.ytimg.com/vi/s-93-iFE3oI/maxresdefault.jpg"
+            src="/card-ball.jpg"
             alt="Ball of cards"
             width={600}
             height={400}
