@@ -60,11 +60,24 @@ const GameTable = () => {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
 
     if (currentPlayer.isAI && gameState.phase === 'betting') {
-      const aiAction: PlayerAction =
-        Math.random() < 0.2 ? { type: 'fold' } : { type: 'call' };
+      const aiDecision = () => {
+        const score = currentPlayer.score;
+        // Raise with a strong hand (score > 20)
+        if (score > 20 && Math.random() > 0.3) {
+          const raiseAmount = gameState.lastBet + 20; // Simple raise logic
+          return { type: 'raise', amount: raiseAmount };
+        }
+        // Call with a decent hand
+        if (score > 10) {
+          return { type: 'call' };
+        }
+        // Fold with a weak hand
+        return { type: 'fold' };
+      };
 
       const timer = setTimeout(() => {
-        const updatedState = game.handlePlayerAction(currentPlayer.id, aiAction);
+        const action = aiDecision();
+        const updatedState = game.handlePlayerAction(currentPlayer.id, action);
         setGameState(updatedState);
       }, 2000);
 

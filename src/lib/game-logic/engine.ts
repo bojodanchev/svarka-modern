@@ -85,32 +85,36 @@ export class Game {
   }
 
   handlePlayerAction(playerId: string, action: PlayerAction) {
-    const player = this.state.players[this.state.currentPlayerIndex];
-    if (player.id !== playerId) {
+    if (this.state.players[this.state.currentPlayerIndex].id !== playerId) {
       throw new Error("It's not this player's turn.");
     }
+
+    let newState = this.cloneState();
+    let player = newState.players[newState.currentPlayerIndex];
 
     switch (action.type) {
       case 'fold':
         player.hasFolded = true;
         break;
       case 'call':
-        const callAmount = this.state.lastBet - player.currentBet;
+        const callAmount = newState.lastBet - player.currentBet;
         player.balance -= callAmount;
         player.currentBet += callAmount;
-        this.state.pot += callAmount;
+        newState.pot += callAmount;
         break;
       case 'raise':
       case 'bet':
-        const betAmount = action.amount - player.currentBet;
-        player.balance -= betAmount;
-        player.currentBet += betAmount;
-        this.state.pot += betAmount;
-        this.state.lastBet = player.currentBet;
+        const totalBetAmount = action.amount;
+        const amountToBet = totalBetAmount - player.currentBet;
+        player.balance -= amountToBet;
+        player.currentBet = totalBetAmount;
+        newState.pot += amountToBet;
+        newState.lastBet = totalBetAmount;
         break;
     }
 
     player.lastAction = action.type;
+    this.state = newState; // Temporarily set state for advanceToNextPlayer to read
     this.advanceToNextPlayer();
     
     return this.getState();
@@ -147,7 +151,11 @@ export class Game {
     }
 
     if(this.state.roundWinner){
-        this.state.roundWinner.balance += this.state.pot;
+        // Ensure we are modifying the latest player object
+        const winnerPlayer = this.state.players.find(p => p.id === this.state.roundWinner!.id);
+        if(winnerPlayer) {
+            winnerPlayer.balance += this.state.pot;
+        }
     }
 
     this.state.phase = 'round-over';
@@ -156,5 +164,13 @@ export class Game {
   private deepCloneState(): GameState {
     // Basic deep clone for serializable state. More complex state might need a library like lodash.
     return JSON.parse(JSON.stringify(this.state));
+  }
+
+  private cloneState(): GameState {
+    // Create new objects for state and players array for immutability
+    return {
+      ...this.state,
+      players: this.state.players.map(p => ({...p})),
+    };
   }
 }
