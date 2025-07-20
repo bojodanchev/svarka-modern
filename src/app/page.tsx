@@ -34,7 +34,7 @@ export default function Home() {
 
         <div className="z-10">
           <Image
-            src="/card-ball.jpg"
+            src="/card-ball.png"
             alt="Ball of cards"
             width={600}
             height={400}
