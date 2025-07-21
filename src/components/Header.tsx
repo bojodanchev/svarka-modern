@@ -51,7 +51,7 @@ const Header = () => {
         <div className="hidden md:flex items-center space-x-2">
           {isLoading ? null : user ? (
             <>
-              <span className="text-secondary">Здравей, {user.username}!</span>
+              <span className="text-secondary">Здравей, {user.displayName || user.email}!</span>
               <Button onClick={logout} variant="outline">
                 Изход
               </Button>
@@ -92,7 +92,7 @@ const Header = () => {
                   {isLoading ? null : user ? (
                     <div className="flex flex-col space-y-2">
                       <span className="text-secondary">
-                        Здравей, {user.username}!
+                        Здравей, {user.displayName || user.email}!
                       </span>
                       <Button onClick={() => { logout(); setSheetOpen(false); }} variant="outline">
                         Изход

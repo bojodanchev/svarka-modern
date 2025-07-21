@@ -25,27 +25,22 @@ export type GamePhase =
   | 'round-over';
 
 export interface GameState {
+  id: string;
+  name: string;
   players: Player[];
-  deck: Deck;
-  pot: number;
   currentPlayerIndex: number;
   dealerIndex: number;
-  phase: GamePhase;
+  pot: number;
   lastBet: number;
-  roundWinner: Player | null;
+  phase: 'betting' | 'showdown' | 'round-over' | 'waiting' | 'pre-deal';
+  roundWinner?: Player | null;
+  playersCount?: number;
+  createdBy?: string;
 }
 
-export type PlayerActionType = 'fold' | 'call' | 'bet' | 'raise';
+export type PlayerActionType = 'fold' | 'call' | 'bet' | 'raise' | 'start_new_round';
 
-export type PlayerAction =
-  | { type: 'fold' }
-  | { type: 'call' }
-  | { type: 'bet'; amount: number }
-  | { type: 'raise'; amount: number };
-
-export interface Deck {
-  cards: Card[];
-  reset: () => void;
-  shuffle: () => void;
-  deal: (numberOfCards: number) => Card[];
+export interface PlayerAction {
+  type: PlayerActionType;
+  amount?: number;
 }
