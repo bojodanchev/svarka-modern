@@ -4,12 +4,13 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCKVqgyi6dB37mg9OMnxuKPjygDDcibYyQ",
+  authDomain: "svarkaapp.firebaseapp.com",
+  projectId: "svarkaapp",
+  storageBucket: "svarkaapp.appspot.com",
+  messagingSenderId: "599450533609",
+  appId: "1:599450533609:web:22834cd4ebaf44fd62fa78",
+  measurementId: "G-3D8K3EJ4Z7"
 };
 
 const app = initializeApp(firebaseConfig);
