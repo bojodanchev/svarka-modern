@@ -7,6 +7,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
+interface GameTableProps {
+  game: Game;
+}
+
 interface Message {
   timestamp: string;
   username: string;
@@ -38,32 +42,28 @@ const translateAction = (action: PlayerActionType | null): string => {
 };
 
 
-const GameTable = () => {
+const GameTable = ({ game }: GameTableProps) => {
   const { user } = useAuth();
-  const [game, setGame] = useState<Game | null>(null);
-  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [gameState, setGameState] = useState<GameState | null>(game.getState());
   const [betAmount, setBetAmount] = useState(20);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (user) {
-      const playerNames = [user.username, 'Мария', 'Петър', 'Георги'];
-      const newGame = new Game(playerNames, 'player-0');
-      newGame.startNewRound();
-      setGame(newGame);
-      setGameState(newGame.getState());
-      setMessages([
+    // This effect now only syncs the state, game creation is handled outside
+    setGameState(game.getState());
+    
+    // Initialize chat for the new game instance
+    setMessages([
         {
           timestamp: new Date().toLocaleTimeString(),
           username: 'Система',
           text: 'Масата е отворена.',
           isSystem: true,
         },
-      ]);
-    }
-  }, [user]);
+    ]);
+  }, [game]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -222,7 +222,7 @@ const GameTable = () => {
             <Button
               className="mt-4"
               onClick={() => {
-                const updatedState = game!.startNewRound();
+                const updatedState = game.startNewRound();
                 setGameState(updatedState);
               }}
             >

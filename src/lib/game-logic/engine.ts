@@ -4,8 +4,14 @@ import { calculateHandScore } from './scoring';
 
 export class Game {
   private state: GameState;
+  private options: { smallBlind: number; bigBlind: number };
 
-  constructor(playerNames: string[], humanPlayerId: string) {
+  constructor(
+    playerNames: string[],
+    humanPlayerId: string,
+    options = { smallBlind: 5, bigBlind: 10 }
+  ) {
+    this.options = options;
     const players: Player[] = playerNames.map((name, index) => ({
       id: `player-${index}`,
       name,
@@ -59,7 +65,7 @@ export class Game {
 
     const smallBlindPlayer = this.state.players[smallBlindIndex];
     if (smallBlindPlayer) {
-      const blindAmount = 5;
+      const blindAmount = this.options.smallBlind;
       smallBlindPlayer.balance -= blindAmount;
       smallBlindPlayer.currentBet = blindAmount;
       this.state.pot += blindAmount;
@@ -67,7 +73,7 @@ export class Game {
 
     const bigBlindPlayer = this.state.players[bigBlindIndex];
     if (bigBlindPlayer) {
-      const blindAmount = 10;
+      const blindAmount = this.options.bigBlind;
       bigBlindPlayer.balance -= blindAmount;
       bigBlindPlayer.currentBet = blindAmount;
       this.state.pot += blindAmount;

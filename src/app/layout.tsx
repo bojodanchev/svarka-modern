@@ -1,3 +1,4 @@
+import { GameRoomsProvider } from '@/context/GameRoomsContext';
 import type { Metadata } from 'next';
 import { Inter as FontSans } from 'next/font/google';
 import './globals.css';
@@ -40,11 +41,13 @@ export default function RootLayout({
           fontSans.variable
         )}
       >
-        <div className="relative flex min-h-screen flex-col bg-background">
-          <Header />
-          <main className="container mx-auto p-4 flex-1">{children}</main>
-          <Footer />
-        </div>
+        <GameRoomsProvider>
+          <div className="relative flex min-h-screen flex-col bg-background">
+            <Header />
+            <main className="container mx-auto p-4 flex-1">{children}</main>
+            <Footer />
+          </div>
+        </GameRoomsProvider>
       </body>
     </html>
   );

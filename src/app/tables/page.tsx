@@ -1,9 +1,10 @@
+'use client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import Link from 'next/link';
 
 interface GameTable {
-  id: number;
+  id: string;
   name: string;
   players: number;
   maxPlayers: number;
@@ -12,10 +13,10 @@ interface GameTable {
 }
 
 const mockTables: GameTable[] = [
-  { id: 1, name: 'Маса за начинаещи', players: 2, maxPlayers: 4, minBet: 10, maxBet: 50 },
-  { id: 2, name: 'Маса за напреднали', players: 3, maxPlayers: 6, minBet: 50, maxBet: 200 },
-  { id: 3, name: 'VIP Маса', players: 1, maxPlayers: 2, minBet: 100, maxBet: 1000 },
-  { id: 4, name: 'Бърза игра', players: 4, maxPlayers: 4, minBet: 20, maxBet: 100 },
+  { id: 'beginners', name: 'Маса за начинаещи', players: 2, maxPlayers: 4, minBet: 10, maxBet: 50 },
+  { id: 'advanced', name: 'Маса за напреднали', players: 3, maxPlayers: 6, minBet: 50, maxBet: 200 },
+  { id: 'vip', name: 'VIP Маса', players: 1, maxPlayers: 2, minBet: 100, maxBet: 1000 },
+  { id: 'fast', name: 'Бърза игра', players: 4, maxPlayers: 4, minBet: 20, maxBet: 100 },
 ];
 
 const TablesPage = () => {
@@ -34,10 +35,10 @@ const TablesPage = () => {
                 <span className="font-semibold">${table.minBet}</span> / ${table.maxBet}
               </div>
               <div className="flex justify-end space-x-2">
-                <Link href="/play">
+                <Link href={`/play/${table.id}?minBet=${table.minBet}&maxBet=${table.maxBet}`}>
                   <Button variant="outline">Отвори</Button>
                 </Link>
-                <Link href="/play">
+                <Link href={`/play/${table.id}?minBet=${table.minBet}&maxBet=${table.maxBet}`}>
                   <Button>Влез</Button>
                 </Link>
               </div>
