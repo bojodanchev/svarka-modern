@@ -1,124 +1,108 @@
 'use client';
 
-import { Game } from '@/lib/game-logic/engine';
 import { GameState, PlayerAction, Card, PlayerActionType } from '@/lib/game-logic/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { db, functions } from '@/lib/firebase';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 interface GameTableProps {
-  game: Game;
+  tableId: string;
+  initialGameState: GameState;
 }
 
 interface Message {
-  timestamp: string;
+  timestamp: any;
   username: string;
   text: string;
   isSystem: boolean;
 }
 
 const CardComponent = ({ card }: { card: Card }) => (
-  <div className="bg-white text-black rounded-md p-2 w-16 h-24 flex flex-col justify-between">
-    <span className="text-xl">{card.rank}</span>
-    <span className="text-2xl">{card.suit}</span>
-  </div>
+    <div className="bg-white text-black rounded-md p-2 w-16 h-24 flex flex-col justify-between">
+      <span className="text-xl">{card.rank}</span>
+      <span className="text-2xl">{card.suit}</span>
+    </div>
 );
-
+  
 const translateAction = (action: PlayerActionType | null): string => {
-  if (!action) return '';
-  switch (action) {
-    case 'fold':
-      return 'Пас';
-    case 'call':
-      return 'Плащам';
-    case 'bet':
-      return 'Залагам';
-    case 'raise':
-      return 'Вдигам';
-    default:
-      return '';
-  }
+    if (!action) return '';
+    switch (action) {
+      case 'fold':
+        return 'Пас';
+      case 'call':
+        return 'Плащам';
+      case 'bet':
+        return 'Залагам';
+      case 'raise':
+        return 'Вдигам';
+      default:
+        return '';
+    }
 };
 
-
-const GameTable = ({ game }: GameTableProps) => {
+const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
   const { user } = useAuth();
-  const [gameState, setGameState] = useState<GameState | null>(game.getState());
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [betAmount, setBetAmount] = useState(20);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // This effect now only syncs the state, game creation is handled outside
-    setGameState(game.getState());
-    
-    // Initialize chat for the new game instance
-    setMessages([
-        {
-          timestamp: new Date().toLocaleTimeString(),
-          username: 'Система',
-          text: 'Масата е отворена.',
-          isSystem: true,
-        },
-    ]);
-  }, [game]);
+    const q = query(collection(db, `gameRooms/${tableId}/messages`), orderBy('timestamp'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const msgs: Message[] = [];
+      querySnapshot.forEach((doc) => {
+        msgs.push(doc.data() as Message);
+      });
+      setMessages(msgs);
+    });
+    return () => unsubscribe();
+  }, [tableId]);
+
+  useEffect(() => {
+    setGameState(initialGameState);
+  }, [initialGameState]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
-
-  useEffect(() => {
-    if (!game || !gameState || !user) return;
-
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-
-    if (currentPlayer.isAI && gameState.phase === 'betting') {
-      const aiDecision = () => {
-        const score = currentPlayer.score;
-        // Raise with a strong hand (score > 20)
-        if (score > 20 && Math.random() > 0.3) {
-          const raiseAmount = gameState.lastBet + 20; // Simple raise logic
-          return { type: 'raise', amount: raiseAmount } as PlayerAction;
-        }
-        // Call with a decent hand
-        if (score > 10) {
-          return { type: 'call' } as PlayerAction;
-        }
-        // Fold with a weak hand
-        return { type: 'fold' } as PlayerAction;
-      };
-
-      const timer = setTimeout(() => {
-        const action = aiDecision();
-        const updatedState = game.handlePlayerAction(currentPlayer.id, action);
-        setGameState(updatedState);
-      }, 2000);
-
-      return () => clearTimeout(timer);
+  
+  const handlePlayerAction = async (action: PlayerAction) => {
+    if (!user) return;
+    const gameAction = httpsCallable(functions, 'gameAction');
+    try {
+      await gameAction({ tableId, action });
+    } catch (error) {
+      console.error("Error performing player action:", error);
     }
-  }, [game, gameState, user]);
-
-  const onPlayerAction = (action: PlayerAction) => {
-    if (!game || !gameState) return;
-    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    const updatedState = game.handlePlayerAction(currentPlayer.id, action);
-    setGameState(updatedState);
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (chatInput.trim() === '' || !user) return;
-    const newMessage: Message = {
-      timestamp: new Date().toLocaleTimeString(),
-      username: user.username,
+    const messagesRef = collection(db, `gameRooms/${tableId}/messages`);
+    await addDoc(messagesRef, {
+      timestamp: serverTimestamp(),
+      username: user.displayName || 'Анонимен',
       text: chatInput,
       isSystem: false,
-    };
-    setMessages((prev) => [...prev, newMessage]);
+    });
     setChatInput('');
+  };
+
+  const handleJoinGame = async () => {
+    const joinGame = httpsCallable(functions, 'joinGame');
+    try {
+      await joinGame({ tableId });
+    } catch (error) {
+      console.error("Error joining game:", error);
+    }
   };
 
   const handleChatKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -127,13 +111,23 @@ const GameTable = ({ game }: GameTableProps) => {
     }
   };
 
-  if (!gameState) {
+  if (!gameState || !user) {
     return <div>Loading game...</div>;
   }
 
+  const isPlayerInGame = gameState.players.some(p => p.id === user.uid);
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const isMyTurn = !currentPlayer.isAI;
-
+  const isMyTurn = currentPlayer?.id === user.uid;
+  
+  if (!isPlayerInGame) {
+    return (
+      <div className="text-center p-8">
+        <h2 className="text-2xl mb-4">Маса: {gameState.name}</h2>
+        <Button onClick={handleJoinGame} size="lg">Влез в играта</Button>
+      </div>
+    );
+  }
+  
   return (
     <>
       {/* Desktop View */}
@@ -199,16 +193,16 @@ const GameTable = ({ game }: GameTableProps) => {
                 onChange={(e) => setBetAmount(parseInt(e.target.value, 10))}
                 className="w-24 bg-input text-foreground"
               />
-              <Button onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}>
+              <Button onClick={() => handlePlayerAction({ type: 'bet', amount: betAmount })}>
                 Заложи
               </Button>
               <Button
-                onClick={() => onPlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}
+                onClick={() => handlePlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}
               >
                 Вдигни
               </Button>
-              <Button onClick={() => onPlayerAction({ type: 'call' })}>Плати</Button>
-              <Button onClick={() => onPlayerAction({ type: 'fold' })} variant="destructive">
+              <Button onClick={() => handlePlayerAction({ type: 'call' })}>Плати</Button>
+              <Button onClick={() => handlePlayerAction({ type: 'fold' })} variant="destructive">
                 Пас
               </Button>
             </div>
@@ -221,10 +215,7 @@ const GameTable = ({ game }: GameTableProps) => {
               </p>
               <Button
                 className="mt-4"
-                onClick={() => {
-                  const updatedState = game.startNewRound();
-                  setGameState(updatedState);
-                }}
+                onClick={() => handlePlayerAction({ type: 'start_new_round' })}
               >
                 Нов рунд
               </Button>
@@ -242,7 +233,7 @@ const GameTable = ({ game }: GameTableProps) => {
             >
               {messages.map((msg, index) => (
                 <p key={index}>
-                  <span className="text-muted-foreground">{msg.timestamp}</span>{' '}
+                  <span className="text-muted-foreground">{(new Date(msg.timestamp?.seconds * 1000)).toLocaleTimeString()}</span>{' '}
                   <span
                     className={
                       msg.isSystem ? 'text-primary' : 'text-secondary'
@@ -292,10 +283,10 @@ const GameTable = ({ game }: GameTableProps) => {
         {isMyTurn && gameState.phase === 'betting' && (
           <div className="fixed bottom-0 left-0 right-0 flex items-center justify-around space-x-1 bg-card/90 backdrop-blur-sm p-2 border-t border-secondary/20 z-50">
             <Input type="number" value={betAmount} onChange={(e) => setBetAmount(parseInt(e.target.value, 10))} className="w-16 bg-input text-foreground text-xs p-1" />
-            <Button size="sm" onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}>Заложи</Button>
-            <Button size="sm" onClick={() => onPlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}>Вдигни</Button>
-            <Button size="sm" onClick={() => onPlayerAction({ type: 'call' })}>Плати</Button>
-            <Button size="sm" onClick={() => onPlayerAction({ type: 'fold' })} variant="destructive">Пас</Button>
+            <Button size="sm" onClick={() => handlePlayerAction({ type: 'bet', amount: betAmount })}>Заложи</Button>
+            <Button size="sm" onClick={() => handlePlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}>Вдигни</Button>
+            <Button size="sm" onClick={() => handlePlayerAction({ type: 'call' })}>Плати</Button>
+            <Button size="sm" onClick={() => handlePlayerAction({ type: 'fold' })} variant="destructive">Пас</Button>
           </div>
         )}
          {gameState.phase === 'round-over' && (
@@ -303,7 +294,7 @@ const GameTable = ({ game }: GameTableProps) => {
             <div className="bg-card/90 p-6 rounded-lg text-center">
                 <h3 className="text-xl font-bold text-secondary">Край на рунда!</h3>
                 <p className="text-lg mt-2">Победител: {gameState.roundWinner?.name}</p>
-                <Button className="mt-4" onClick={() => { const updatedState = game!.startNewRound(); setGameState(updatedState); }}>Нов рунд</Button>
+                <Button className="mt-4" onClick={() => handlePlayerAction({ type: 'start_new_round' })}>Нов рунд</Button>
             </div>
            </div>
         )}

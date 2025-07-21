@@ -1,42 +1,58 @@
 'use client';
 
-import GameTable from '@/components/GameTable';
-import { useGameRooms } from '@/context/GameRoomsContext';
 import { useAuth } from '@/hooks/useAuth';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { GameState } from '@/lib/game-logic/types';
+import GameTable from '@/components/GameTable';
 
 const PlayPage = () => {
-  const { user, isLoggedIn, isLoading: isAuthLoading } = useAuth();
-  const { getOrCreateGame } = useGameRooms();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
-  
   const tableId = typeof params.tableId === 'string' ? params.tableId : '';
-  const minBet = parseInt(searchParams.get('minBet') || '5', 10);
-  const maxBet = parseInt(searchParams.get('maxBet') || '10', 10); // Not used in engine yet, but good to have
+
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthLoading && !isLoggedIn) {
+    if (!isAuthLoading && !user) {
       router.push('/login');
     }
-  }, [isLoggedIn, isAuthLoading, router]);
+  }, [user, isAuthLoading, router]);
 
-  if (isAuthLoading || !isLoggedIn || !user) {
-    return <div>Loading...</div>;
+  useEffect(() => {
+    if (!tableId) return;
+
+    const roomRef = doc(db, 'gameRooms', tableId);
+    const unsubscribe = onSnapshot(roomRef, (doc) => {
+      if (doc.exists()) {
+        setGameState(doc.data() as GameState);
+      } else {
+        setError('Тази маса не съществува.');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [tableId]);
+
+  if (isAuthLoading || !user) {
+    return <div>Зареждане на автентикация...</div>;
   }
 
-  if (!tableId) {
-    return <div>Table not found.</div>
+  if (error) {
+    return <div>Грешка: {error}</div>;
   }
-
-  const playerNames = [user.username, 'Мария', 'Петър', 'Георги'];
-  const game = getOrCreateGame(tableId, playerNames, 'player-0', { smallBlind: minBet, bigBlind: maxBet / 2 });
+  
+  if (!gameState) {
+    return <div>Зареждане на играта...</div>;
+  }
 
   return (
     <div className="container mx-auto p-4">
-      <GameTable game={game} />
+      <GameTable tableId={tableId} initialGameState={gameState} />
     </div>
   );
 };
