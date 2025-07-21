@@ -1,31 +1,15 @@
-import { GameRoomsProvider } from '@/context/GameRoomsContext';
-import type { Metadata } from 'next';
-import { Inter as FontSans } from 'next/font/google';
-import './globals.css';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import { cn } from '@/lib/utils';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { AuthProvider } from "@/hooks/useAuth";
 
-const fontSans = FontSans({
-  subsets: ['latin'],
-  variable: '--font-sans',
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Svarka.bg - The best place to play Svarka online',
-  description: 'Play the Bulgarian card game Svarka online with your friends.',
-  openGraph: {
-    title: 'Svarka.bg - The best place to play Svarka online',
-    description: 'Play the Bulgarian card game Svarka online with your friends.',
-    images: [
-      {
-        url: '/logo.png',
-        width: 120,
-        height: 40,
-        alt: 'Svarka.bg Logo',
-      },
-    ],
-  },
+  title: "Svarka.bg - Modern",
+  description: "Play the classic Bulgarian card game Svarka online.",
 };
 
 export default function RootLayout({
@@ -34,20 +18,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="bg">
       <body
-        className={cn(
-          'min-h-screen bg-background font-sans antialiased',
-          fontSans.variable
-        )}
+        className={`${inter.className} bg-background text-foreground dark min-h-screen flex flex-col`}
       >
-        <GameRoomsProvider>
-          <div className="relative flex min-h-screen flex-col bg-background">
-            <Header />
-            <main className="container mx-auto p-4 flex-1">{children}</main>
-            <Footer />
-          </div>
-        </GameRoomsProvider>
+        <AuthProvider>
+          <Header />
+          <main className="flex-grow">{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );

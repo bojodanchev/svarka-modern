@@ -1,49 +1,84 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import Link from 'next/link';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 
-const RegisterPage = () => {
+export default function RegisterPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const { login } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const { registerWithEmail } = useAuth();
   const router = useRouter();
+  const db = getFirestore();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim()) {
-      login(username);
+    setError(null);
+    try {
+      const userCredential = await registerWithEmail(email, password);
+      const user = userCredential.user;
+      
+      // Save user data to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: user.email,
+        username: username,
+        balance: 1000, // Starting balance
+      });
+
       router.push('/tables');
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
   return (
-    <div className="container mx-auto p-4 py-8">
-      <h1 className="text-4xl font-extrabold text-center mb-6">Регистрация</h1>
-      <div className="max-w-md mx-auto bg-card text-card-foreground p-8 rounded-lg shadow-lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium">
-              Потребителско име
-            </label>
-            <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              required
-              className="mt-1"
-            />
-          </div>
+    <div className="container mx-auto flex items-center justify-center min-h-screen">
+      <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-lg shadow-lg">
+        <h1 className="text-3xl font-bold text-center text-primary">Регистрация</h1>
+        <form onSubmit={handleRegister} className="space-y-4">
+          <Input
+            type="text"
+            placeholder="Потребителско име"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            className="bg-input"
+          />
+          <Input
+            type="email"
+            placeholder="Имейл"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="bg-input"
+          />
+          <Input
+            type="password"
+            placeholder="Парола"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="bg-input"
+          />
           <Button type="submit" className="w-full">
             Регистрация
           </Button>
         </form>
+        {error && <p className="text-red-500 text-center">{error}</p>}
+        <p className="text-center text-muted-foreground">
+          Имате акаунт?{' '}
+          <Link href="/login" className="text-primary hover:underline">
+            Влезте
+          </Link>
+        </p>
       </div>
     </div>
   );
-};
-
-export default RegisterPage; 
+} 
