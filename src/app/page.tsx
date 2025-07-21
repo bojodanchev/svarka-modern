@@ -7,7 +7,7 @@ import Link from 'next/link';
 export default function Home() {
   return (
     <>
-      <section className="container grid lg:grid-cols-2 place-items-center py-8 md:py-12 gap-10">
+      <section className="container grid lg:grid-cols-2 place-items-center py-12 md:py-20 gap-10">
         <div className="text-center lg:text-start space-y-6">
           <main className="text-5xl md:text-6xl font-bold">
             <h1 className="inline">
@@ -32,7 +32,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="z-10">
+        <div className="z-10 order-first lg:order-last">
           <Image
             src="/card-ball.png"
             alt="Ball of cards"
@@ -43,7 +43,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="how-to-play" className="container py-8 sm:py-12">
+      <section id="how-to-play" className="container py-12 md:py-20">
         <h2 className="text-3xl md:text-4xl font-bold text-center">
           Как се играе?
         </h2>
@@ -51,7 +51,7 @@ export default function Home() {
           Следвайте тези три лесни стъпки, за да започнете.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 place-items-center">
           <StepCard
             number="1"
             title="Регистрирай се!"
@@ -73,7 +73,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="about-us" className="container py-8 sm:py-12">
+      <section id="about-us" className="container py-12 md:py-20">
         <div className="bg-card text-card-foreground p-8 rounded-lg shadow-lg">
           <div className="grid lg:grid-cols-2 gap-8 items-center">
             <div className="space-y-4">
