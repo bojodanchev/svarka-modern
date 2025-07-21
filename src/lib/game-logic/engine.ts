@@ -65,7 +65,7 @@ export class Game {
 
     const smallBlindPlayer = this.state.players[smallBlindIndex];
     if (smallBlindPlayer) {
-      const blindAmount = this.options.smallBlind;
+      const blindAmount = Math.min(this.options.smallBlind, smallBlindPlayer.balance);
       smallBlindPlayer.balance -= blindAmount;
       smallBlindPlayer.currentBet = blindAmount;
       this.state.pot += blindAmount;
@@ -73,7 +73,7 @@ export class Game {
 
     const bigBlindPlayer = this.state.players[bigBlindIndex];
     if (bigBlindPlayer) {
-      const blindAmount = this.options.bigBlind;
+      const blindAmount = Math.min(this.options.bigBlind, bigBlindPlayer.balance);
       bigBlindPlayer.balance -= blindAmount;
       bigBlindPlayer.currentBet = blindAmount;
       this.state.pot += blindAmount;
@@ -103,14 +103,14 @@ export class Game {
         player.hasFolded = true;
         break;
       case 'call':
-        const callAmount = newState.lastBet - player.currentBet;
+        const callAmount = Math.min(newState.lastBet - player.currentBet, player.balance);
         player.balance -= callAmount;
         player.currentBet += callAmount;
         newState.pot += callAmount;
         break;
       case 'raise':
       case 'bet':
-        const totalBetAmount = action.amount;
+        const totalBetAmount = Math.min(action.amount, player.balance + player.currentBet);
         const amountToBet = totalBetAmount - player.currentBet;
         player.balance -= amountToBet;
         player.currentBet = totalBetAmount;
