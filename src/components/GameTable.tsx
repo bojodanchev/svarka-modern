@@ -135,138 +135,180 @@ const GameTable = ({ game }: GameTableProps) => {
   const isMyTurn = !currentPlayer.isAI;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
-      <div className="lg:col-span-2 bg-background text-foreground p-8 rounded-lg shadow-2xl relative min-h-[800px] flex items-center justify-center">
-        <div className="absolute w-[95%] h-[75%] bg-primary rounded-[50%] shadow-2xl border-4 border-secondary/50"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-10">
-          <h2 className="text-3xl font-bold mb-4 text-secondary">
-            Пот: ${gameState.pot}
-          </h2>
-        </div>
-        {gameState.players.map((player, index) => {
-          const positions = [
-            { top: '85%', left: '50%', transform: 'translate(-50%, -50%)' },
-            { top: '50%', left: '10%', transform: 'translate(-50%, -50%)' },
-            { top: '15%', left: '50%', transform: 'translate(-50%, -50%)' },
-            { top: '50%', left: '90%', transform: 'translate(-50%, -50%)' },
-          ];
-          return (
-            <div
-              key={player.id}
-              className="absolute w-64 text-center p-4 z-10"
-              style={positions[index]}
-            >
+    <>
+      {/* Desktop View */}
+      <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
+        <div className="lg:col-span-2 bg-background text-foreground p-8 rounded-lg shadow-2xl relative min-h-[800px] flex items-center justify-center">
+          <div className="absolute w-[95%] h-[75%] bg-primary rounded-[50%] shadow-2xl border-4 border-secondary/50"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-10">
+            <h2 className="text-3xl font-bold mb-4 text-secondary">
+              Пот: ${gameState.pot}
+            </h2>
+          </div>
+          {gameState.players.map((player, index) => {
+            const positions = [
+              { top: '85%', left: '50%', transform: 'translate(-50%, -50%)' },
+              { top: '50%', left: '10%', transform: 'translate(-50%, -50%)' },
+              { top: '15%', left: '50%', transform: 'translate(-50%, -50%)' },
+              { top: '50%', left: '90%', transform: 'translate(-50%, -50%)' },
+            ];
+            return (
               <div
-                className={`bg-card rounded-lg p-4 border-2 ${
-                  gameState.currentPlayerIndex === index
-                    ? 'border-primary'
-                    : 'border-secondary/20'
-                }`}
+                key={player.id}
+                className="absolute w-64 text-center p-4 z-10"
+                style={positions[index]}
               >
-                <h3 className="font-bold text-lg text-secondary">
-                  {player.name}
-                </h3>
-                <p>Баланс: ${player.balance}</p>
-                {player.currentBet > 0 && (
-                  <p className="text-primary-foreground">
-                    Залог: ${player.currentBet}
-                  </p>
-                )}
-                {player.hasFolded && (
-                  <p className="text-destructive">Пас</p>
-                )}
-                {player.lastAction && (
-                  <p className="text-muted-foreground text-sm">
-                    Действие: {translateAction(player.lastAction)}
-                  </p>
-                )}
-                <div className="flex justify-center space-x-2 mt-2 h-24">
-                  {player.hand.map((card, i) => (
-                    <CardComponent key={i} card={card} />
-                  ))}
+                <div
+                  className={`bg-card rounded-lg p-4 border-2 ${
+                    gameState.currentPlayerIndex === index
+                      ? 'border-primary'
+                      : 'border-secondary/20'
+                  }`}
+                >
+                  <h3 className="font-bold text-lg text-secondary">
+                    {player.name}
+                  </h3>
+                  <p>Баланс: ${player.balance}</p>
+                  {player.currentBet > 0 && (
+                    <p className="text-primary-foreground">
+                      Залог: ${player.currentBet}
+                    </p>
+                  )}
+                  {player.hasFolded && (
+                    <p className="text-destructive">Пас</p>
+                  )}
+                  {player.lastAction && (
+                    <p className="text-muted-foreground text-sm">
+                      Действие: {translateAction(player.lastAction)}
+                    </p>
+                  )}
+                  <div className="flex justify-center space-x-2 mt-2 h-24">
+                    {player.hand.map((card, i) => (
+                      <CardComponent key={i} card={card} />
+                    ))}
+                  </div>
                 </div>
               </div>
+            );
+          })}
+          {isMyTurn && gameState.phase === 'betting' && (
+            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-card/80 backdrop-blur-sm p-4 rounded-lg border border-secondary/20 z-20">
+              <Input
+                type="number"
+                value={betAmount}
+                onChange={(e) => setBetAmount(parseInt(e.target.value, 10))}
+                className="w-24 bg-input text-foreground"
+              />
+              <Button onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}>
+                Заложи
+              </Button>
+              <Button
+                onClick={() => onPlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}
+              >
+                Вдигни
+              </Button>
+              <Button onClick={() => onPlayerAction({ type: 'call' })}>Плати</Button>
+              <Button onClick={() => onPlayerAction({ type: 'fold' })} variant="destructive">
+                Пас
+              </Button>
             </div>
-          );
-        })}
-
-        {isMyTurn && gameState.phase === 'betting' && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-card/80 backdrop-blur-sm p-4 rounded-lg border border-secondary/20 z-20">
-            <Input
-              type="number"
-              value={betAmount}
-              onChange={(e) => setBetAmount(parseInt(e.target.value, 10))}
-              className="w-24 bg-input text-foreground"
-            />
-            <Button onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}>
-              Заложи
-            </Button>
-            <Button
-              onClick={() => onPlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}
-            >
-              Вдигни
-            </Button>
-            <Button onClick={() => onPlayerAction({ type: 'call' })}>Плати</Button>
-            <Button onClick={() => onPlayerAction({ type: 'fold' })} variant="destructive">
-              Пас
-            </Button>
-          </div>
-        )}
-
-        {gameState.phase === 'round-over' && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/90 p-8 rounded-lg z-30 text-center">
-            <h3 className="text-2xl font-bold text-secondary">Край на рунда!</h3>
-            <p className="text-xl mt-2">
-              Победител: {gameState.roundWinner?.name}
-            </p>
-            <Button
-              className="mt-4"
-              onClick={() => {
-                const updatedState = game.startNewRound();
-                setGameState(updatedState);
-              }}
-            >
-              Нов рунд
-            </Button>
-          </div>
-        )}
-      </div>
-      <div className="lg:col-span-1">
-        <div className="bg-card text-card-foreground p-4 rounded-lg shadow-lg h-full flex flex-col">
-          <h2 className="text-2xl font-bold text-secondary mb-4 border-b border-secondary/20 pb-2">
-            Чат
-          </h2>
-          <div
-            ref={chatContainerRef}
-            className="flex-grow space-y-2 overflow-y-auto"
-          >
-            {messages.map((msg, index) => (
-              <p key={index}>
-                <span className="text-muted-foreground">{msg.timestamp}</span>{' '}
-                <span
-                  className={
-                    msg.isSystem ? 'text-primary' : 'text-secondary'
-                  }
-                >
-                  {msg.username}:
-                </span>{' '}
-                {msg.text}
+          )}
+          {gameState.phase === 'round-over' && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/90 p-8 rounded-lg z-30 text-center">
+              <h3 className="text-2xl font-bold text-secondary">Край на рунда!</h3>
+              <p className="text-xl mt-2">
+                Победител: {gameState.roundWinner?.name}
               </p>
-            ))}
-          </div>
-          <div className="mt-4 flex space-x-2">
-            <Input
-              placeholder="Вашето съобщение..."
-              className="bg-input"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={handleChatKeyDown}
-            />
-            <Button onClick={handleSendMessage}>Изпрати</Button>
+              <Button
+                className="mt-4"
+                onClick={() => {
+                  const updatedState = game.startNewRound();
+                  setGameState(updatedState);
+                }}
+              >
+                Нов рунд
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="lg:col-span-1">
+          <div className="bg-card text-card-foreground p-4 rounded-lg shadow-lg h-full flex flex-col">
+            <h2 className="text-2xl font-bold text-secondary mb-4 border-b border-secondary/20 pb-2">
+              Чат
+            </h2>
+            <div
+              ref={chatContainerRef}
+              className="flex-grow space-y-2 overflow-y-auto"
+            >
+              {messages.map((msg, index) => (
+                <p key={index}>
+                  <span className="text-muted-foreground">{msg.timestamp}</span>{' '}
+                  <span
+                    className={
+                      msg.isSystem ? 'text-primary' : 'text-secondary'
+                    }
+                  >
+                    {msg.username}:
+                  </span>{' '}
+                  {msg.text}
+                </p>
+              ))}
+            </div>
+            <div className="mt-4 flex space-x-2">
+              <Input
+                placeholder="Вашето съобщение..."
+                className="bg-input"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={handleChatKeyDown}
+              />
+              <Button onClick={handleSendMessage}>Изпрати</Button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Mobile View */}
+      <div className="lg:hidden flex flex-col gap-4 p-2">
+        {gameState.players.map((player, index) => (
+          <div key={player.id} className={`w-full text-center p-2 bg-card rounded-lg border-2 ${gameState.currentPlayerIndex === index ? 'border-primary' : 'border-secondary/20'}`}>
+            <h3 className="font-bold text-md text-secondary">{player.name}</h3>
+            <p className="text-sm">Баланс: ${player.balance}</p>
+            {player.currentBet > 0 && <p className="text-primary-foreground text-sm">Залог: ${player.currentBet}</p>}
+            {player.lastAction && <p className="text-muted-foreground text-xs">Действие: {translateAction(player.lastAction)}</p>}
+            <div className="flex justify-center space-x-1 mt-1">
+              {player.hand.map((card, i) => (
+                <div key={i} className="bg-white text-black rounded p-1 w-12 h-16 flex flex-col justify-between text-xs">
+                  <span className="font-bold">{card.rank}</span>
+                  <span>{card.suit}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div className="text-center my-4">
+            <h2 className="text-2xl font-bold text-secondary">Пот: ${gameState.pot}</h2>
+        </div>
+        {isMyTurn && gameState.phase === 'betting' && (
+          <div className="fixed bottom-0 left-0 right-0 flex items-center justify-around space-x-1 bg-card/90 backdrop-blur-sm p-2 border-t border-secondary/20 z-50">
+            <Input type="number" value={betAmount} onChange={(e) => setBetAmount(parseInt(e.target.value, 10))} className="w-16 bg-input text-foreground text-xs p-1" />
+            <Button size="sm" onClick={() => onPlayerAction({ type: 'bet', amount: betAmount })}>Заложи</Button>
+            <Button size="sm" onClick={() => onPlayerAction({ type: 'raise', amount: gameState.lastBet + betAmount })}>Вдигни</Button>
+            <Button size="sm" onClick={() => onPlayerAction({ type: 'call' })}>Плати</Button>
+            <Button size="sm" onClick={() => onPlayerAction({ type: 'fold' })} variant="destructive">Пас</Button>
+          </div>
+        )}
+         {gameState.phase === 'round-over' && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-card/90 p-6 rounded-lg text-center">
+                <h3 className="text-xl font-bold text-secondary">Край на рунда!</h3>
+                <p className="text-lg mt-2">Победител: {gameState.roundWinner?.name}</p>
+                <Button className="mt-4" onClick={() => { const updatedState = game!.startNewRound(); setGameState(updatedState); }}>Нов рунд</Button>
+            </div>
+           </div>
+        )}
+      </div>
+    </>
   );
 };
 
