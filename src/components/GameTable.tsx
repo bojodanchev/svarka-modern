@@ -203,7 +203,7 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
               </p>
               <div className="flex justify-center space-x-2 my-4">
                 {gameState.roundWinner?.hand.map((card, i) => (
-                    <CardComponent key={i} card={card} />
+                    <CardComponent key={i} card={card} isVisible={true} />
                 ))}
               </div>
               <Button
@@ -293,10 +293,7 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
             {player.lastAction && <p className="text-muted-foreground text-xs">Действие: {translateAction(player.lastAction)}</p>}
             <div className="flex justify-center space-x-1 mt-1">
               {player.hand.map((card, i) => (
-                <div key={i} className="bg-white text-black rounded p-1 w-12 h-16 flex flex-col justify-between text-xs">
-                  <span className="font-bold">{card.rank}</span>
-                  <span>{card.suit}</span>
-                </div>
+                <CardComponent key={i} card={card} isVisible={player.id === user.uid || gameState.phase === 'round-over'} />
               ))}
             </div>
           </div>
@@ -323,10 +320,7 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
                 </p>
                 <div className="flex justify-center space-x-2 my-3">
                     {gameState.roundWinner?.hand.map((card, i) => (
-                        <div key={i} className="bg-white text-black rounded p-1 w-12 h-16 flex flex-col justify-between text-xs">
-                            <span className="font-bold">{card.rank}</span>
-                            <span>{card.suit}</span>
-                        </div>
+                        <CardComponent key={i} card={card} isVisible={true} />
                     ))}
                 </div>
                 <Button className="mt-4" onClick={() => startNewRound(undefined, false)} disabled={isProcessing}>Нов рунд</Button>
