@@ -27,13 +27,19 @@ const PlayPage = () => {
     if (!tableId) return;
 
     const roomRef = doc(db, 'gameRooms', tableId);
-    const unsubscribe = onSnapshot(roomRef, (doc) => {
-      if (doc.exists()) {
-        setGameState(doc.data() as GameState);
-      } else {
-        setError('Тази маса не съществува.');
+    const unsubscribe = onSnapshot(roomRef, 
+      (doc) => {
+        if (doc.exists()) {
+          setGameState({ id: doc.id, ...doc.data() } as GameState);
+        } else {
+          setError('Тази маса не съществува или е изтрита.');
+        }
+      },
+      (err) => {
+        console.error("Firestore snapshot error:", err);
+        setError(`Грешка при зареждане на играта. Проверете правилата за достъп (Security Rules) във вашата Firebase конзола.`);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [tableId]);
