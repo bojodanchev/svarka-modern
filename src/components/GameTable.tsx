@@ -22,12 +22,21 @@ interface Message {
   isSystem?: boolean;
 }
 
-const CardComponent = ({ card }: { card: Card }) => (
-    <div className="bg-white text-black rounded-md p-2 w-16 h-24 flex flex-col justify-between">
-      <span className="text-xl">{card.rank}</span>
-      <span className="text-2xl">{card.suit}</span>
-    </div>
-);
+const CardComponent = ({ card, isVisible }: { card: Card; isVisible: boolean; }) => {
+    if (!isVisible) {
+        return (
+            <div className="bg-white rounded-md w-16 h-24 flex items-center justify-center">
+                <img src="/card-back.png" alt="Card Back" className="w-full h-full object-cover rounded-md" />
+            </div>
+        );
+    }
+    return (
+        <div className="bg-white text-black rounded-md p-2 w-16 h-24 flex flex-col justify-between">
+            <span className="text-xl">{card.rank}</span>
+            <span className="text-2xl">{card.suit}</span>
+        </div>
+    );
+};
   
 const translateAction = (action: PlayerActionType | null): string => {
     if (!action) return '';
@@ -161,7 +170,7 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
                   )}
                   <div className="flex justify-center space-x-2 mt-2 h-24">
                     {player.hand.map((card, i) => (
-                      <CardComponent key={i} card={card} />
+                      <CardComponent key={i} card={card} isVisible={player.id === user.uid || gameState.phase === 'round-over'}/>
                     ))}
                   </div>
                 </div>
