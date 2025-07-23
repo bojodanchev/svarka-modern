@@ -6,62 +6,44 @@ import { shuffleDeck, createDeck } from '@/lib/game-logic/deck';
 import { evaluateHand } from '@/lib/game-logic/scoring'; // Updated import
 
 const makeAIMove = (player: Player, gameState: GameState): PlayerAction => {
-    const { handScore, balance, currentBet } = player;
+    const { handScore, handRank, balance, currentBet } = player;
     const { lastBet, minBet } = gameState;
     const costToCall = lastBet - currentBet;
 
-    // --- Strong Hand (> 25 points) ---
-    if (handScore > 25) {
-        // 70% chance to raise
-        if (Math.random() < 0.70) {
+    // --- Strong Hand (Svarka or Triple) ---
+    if (handRank > 1) { // Rank 2 (Triple) or 3 (Svarka)
+        if (Math.random() < 0.8) { // 80% chance to be aggressive
             const raiseAmount = lastBet + (minBet || 10) * (Math.random() > 0.5 ? 2 : 1);
             if (balance >= (raiseAmount - currentBet)) {
                 return { type: 'raise', amount: raiseAmount };
             }
         }
-        // Fallback: Call if possible, otherwise check
         if (costToCall > 0 && balance >= costToCall) return { type: 'call' };
         return { type: 'check' };
     }
 
-    // --- Medium Hand (15-25 points) ---
-    if (handScore >= 15 && handScore <= 25) {
-        // 50% chance to call
-        if (costToCall > 0 && Math.random() < 0.50) {
-            if (balance >= costToCall) {
-                return { type: 'call' };
-            }
+    // --- Medium Hand (Pair > 16) ---
+    if (handRank === 1 && handScore > 16) {
+        if (costToCall > 0 && Math.random() < 0.6) { // 60% chance to call
+            if (balance >= costToCall) return { type: 'call' };
         }
-        // Fallback: Check if possible, otherwise fold
         if (costToCall > 0) return { type: 'fold' };
         return { type: 'check' };
     }
 
-    // --- Weak Hand (< 15 points) ---
-    if (handScore < 15) {
-        // 10% chance to bluff
-        if (Math.random() < 0.10) {
-            const raiseAmount = lastBet + (minBet || 10);
-            if (balance >= (raiseAmount - currentBet)) {
-                return { type: 'raise', amount: raiseAmount };
-            }
+    // --- Weak Hand ---
+    // 10% chance to bluff on a weak hand
+    if (Math.random() < 0.10 && lastBet === 0) {
+        const betAmount = minBet || 10;
+        if (balance >= betAmount) {
+            return { type: 'bet', amount: betAmount };
         }
-        // 80% chance to fold
-        if (costToCall > 0 && Math.random() < 0.80) {
-            return { type: 'fold' };
-        }
-        // Fallback: check if possible, otherwise fold
-        if (costToCall > 0) {
-            if (balance >= costToCall && costToCall < balance * 0.1) { // only call if it's super cheap
-                return { type: 'call' };
-            }
-            return { type: 'fold' };
-        }
-        return { type: 'check' };
     }
-
-    // Default fallback
-    if (costToCall > 0 && balance >= costToCall) return { type: 'call' };
+    // High probability to fold if there is a bet
+    if (costToCall > 0) {
+        return { type: 'fold' };
+    }
+    // Otherwise, just check
     return { type: 'check' };
 };
 
@@ -129,6 +111,14 @@ export const useGameEngine = (initialState: GameState, user: any) => {
 
         if (allPlayersCalledOrChecked && allBetsEqual) {
             
+            // Failsafe: Re-evaluate hands right before showdown to ensure data is correct.
+            activePlayers.forEach(p => {
+                const evaluation = evaluateHand(p.hand);
+                p.handScore = evaluation.score;
+                p.handRank = evaluation.rank;
+                p.handDescription = evaluation.description;
+            });
+
             const sortedPlayers = [...activePlayers].sort((a, b) => {
                 if (b.handRank !== a.handRank) return b.handRank - a.handRank;
                 return b.handScore - a.handScore;
