@@ -2,14 +2,24 @@
 
 import { GameState, Card, PlayerActionType } from '@/lib/game-logic/types';
 import { useAuth } from '@/hooks/useAuth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { useGameEngine } from '@/hooks/useGameEngine'; // New hook
+import { useGameEngine } from '@/hooks/useGameEngine';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 
 interface GameTableProps {
   tableId: string; // Keep for potential future use (e.g., chat)
   initialGameState: GameState;
+}
+
+interface Message {
+  id?: string;
+  timestamp: any;
+  username: string;
+  text: string;
+  isSystem?: boolean;
 }
 
 const CardComponent = ({ card }: { card: Card }) => (
@@ -31,14 +41,37 @@ const translateAction = (action: PlayerActionType | null): string => {
 };
 
 const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { gameState, handlePlayerAction, startNewRound, isProcessing, handleRejoinTieBreak } = useGameEngine(initialGameState, user);
   const [betAmount, setBetAmount] = useState(initialGameState.minBet || 20);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   
   const isTied = gameState.phase === 'tie-break';
   const amITied = user && gameState.tiedPlayerIds?.includes(user.uid);
   const canRejoin = user && (!gameState.tiedPlayerIds?.includes(user.uid)) && ((gameState.players.find(p => p.id === user.uid)?.balance ?? 0) >= gameState.minBet);
   const hasRejoined = user && gameState.players.find(p => p.id === user.uid)?.isReadyForNextRound;
+
+  // Chat logic
+  useEffect(() => {
+    if (!tableId) return;
+    const q = query(collection(db, `gameRooms/${tableId}/messages`), orderBy('timestamp'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const msgs: Message[] = [];
+      querySnapshot.forEach((doc) => {
+        msgs.push({ id: doc.id, ...doc.data() } as Message);
+      });
+      setMessages(msgs);
+    });
+    return () => unsubscribe();
+  }, [tableId]);
+  
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   // AI logic for rejoining tie-break
   useEffect(() => {
@@ -74,14 +107,31 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
 
   const handleStartNewRound = () => {
     if (isProcessing) return;
-    startNewRound();
+    startNewRound(undefined, false);
   }
+
+  const handleSendMessage = async () => {
+    if (chatInput.trim() === '' || !user || !userProfile) return;
+    const messagesRef = collection(db, `gameRooms/${tableId}/messages`);
+    await addDoc(messagesRef, {
+      timestamp: serverTimestamp(),
+      username: userProfile.username,
+      text: chatInput,
+    });
+    setChatInput('');
+  };
+
+  const handleChatKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleSendMessage();
+    }
+  };
 
   return (
     <>
       {/* Desktop View */}
       <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
-        <div className="lg:col-span-3 bg-background text-foreground p-8 rounded-lg shadow-2xl relative min-h-[800px] flex items-center justify-center">
+        <div className="lg:col-span-2 bg-background text-foreground p-8 rounded-lg shadow-2xl relative min-h-[800px] flex items-center justify-center">
           <div className="absolute w-[95%] h-[75%] bg-primary rounded-[50%] shadow-2xl border-4 border-secondary/50"></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-10">
             <h2 className="text-3xl font-bold mb-4 text-secondary">
@@ -199,6 +249,41 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
               )}
             </div>
           )}
+        </div>
+        <div className="lg:col-span-1">
+          <div className="bg-card text-card-foreground p-4 rounded-lg shadow-lg h-full flex flex-col">
+            <h2 className="text-2xl font-bold text-secondary mb-4 border-b border-secondary/20 pb-2">
+              Чат на масата
+            </h2>
+            <div
+              ref={chatContainerRef}
+              className="flex-grow space-y-2 overflow-y-auto pr-2"
+            >
+              {messages.map((msg) => (
+                <p key={msg.id}>
+                  <span className="text-muted-foreground">{(msg.timestamp?.seconds ? new Date(msg.timestamp.seconds * 1000) : new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>{' '}
+                  <span
+                    className={
+                      msg.isSystem ? 'text-primary' : 'font-semibold text-secondary'
+                    }
+                  >
+                    {msg.username}:
+                  </span>{' '}
+                  {msg.text}
+                </p>
+              ))}
+            </div>
+            <div className="mt-4 flex space-x-2">
+              <Input
+                placeholder="Вашето съобщение..."
+                className="bg-input"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={handleChatKeyDown}
+              />
+              <Button onClick={handleSendMessage}>Изпрати</Button>
+            </div>
+          </div>
         </div>
       </div>
 
