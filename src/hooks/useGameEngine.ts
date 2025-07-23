@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { GameState, Player, PlayerAction } from '@/lib/game-logic/types';
 import { shuffleDeck, createDeck } from '@/lib/game-logic/deck';
-import { evaluateHand } from '@/lib/game-logic/scoring'; // Updated import
+import { evaluateHand } from '@/lib/game-logic/scoring';
 
 const makeAIMove = (player: Player, gameState: GameState): PlayerAction => {
     const { handScore, handRank, balance, currentBet } = player;
@@ -32,72 +32,102 @@ const makeAIMove = (player: Player, gameState: GameState): PlayerAction => {
     }
 
     // --- Weak Hand ---
-    // 10% chance to bluff on a weak hand
-    if (Math.random() < 0.10 && lastBet === 0) {
-        const betAmount = minBet || 10;
-        if (balance >= betAmount) {
-            return { type: 'bet', amount: betAmount };
-        }
-    }
-    // High probability to fold if there is a bet
-    if (costToCall > 0) {
+    if (lastBet > 0) {
+        if (Math.random() < 0.1 && balance >= costToCall) return { type: 'call' }; // 10% bluff call
         return { type: 'fold' };
     }
-    // Otherwise, just check
     return { type: 'check' };
 };
-
 
 export const useGameEngine = (initialState: GameState, user: any) => {
     const [gameState, setGameState] = useState<GameState>(initialState);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const processPlayerMove = (player: Player, move: PlayerAction, state: GameState): GameState => {
-        const newState = JSON.parse(JSON.stringify(state));
-        const playerInState = newState.players.find((p: Player) => p.id === player.id);
-        if (!playerInState) return newState;
-        
-        playerInState.lastAction = move.type;
+    const processMove = useCallback((state: GameState, playerIndex: number, move: PlayerAction): GameState => {
+        let newState = JSON.parse(JSON.stringify(state));
+        const player = newState.players[playerIndex];
+        if (!player || player.hasFolded) return newState;
+
+        player.lastAction = move.type;
+        player.actedInRound = true;
 
         switch (move.type) {
             case 'fold':
-                playerInState.hasFolded = true;
+                player.hasFolded = true;
                 break;
             case 'call':
-                const callAmount = newState.lastBet - playerInState.currentBet;
+                const callAmount = newState.lastBet - player.currentBet;
                 if (callAmount > 0) {
-                    const amountToCall = Math.min(callAmount, playerInState.balance);
-                    playerInState.balance -= amountToCall;
-                    playerInState.currentBet += amountToCall;
+                    const amountToCall = Math.min(callAmount, player.balance);
+                    player.balance -= amountToCall;
+                    player.currentBet += amountToCall;
                     newState.pot += amountToCall;
                 }
                 break;
             case 'bet':
             case 'raise':
+                const isRaise = newState.lastBet > 0;
                 const totalBet = move.amount || 0;
-                const requiredAmount = totalBet - playerInState.currentBet;
+                const requiredAmount = totalBet - player.currentBet;
                 
-                if (requiredAmount > 0 && totalBet >= newState.lastBet && playerInState.balance >= requiredAmount) {
-                    playerInState.balance -= requiredAmount;
-                    playerInState.currentBet += requiredAmount;
+                if (requiredAmount > 0 && totalBet >= newState.lastBet && player.balance >= requiredAmount) {
+                    player.balance -= requiredAmount;
+                    player.currentBet += requiredAmount;
                     newState.pot += requiredAmount;
-                    newState.lastBet = playerInState.currentBet;
+                    newState.lastBet = player.currentBet;
+                    // If a player raises, everyone else needs to act again
+                    if(isRaise) {
+                        newState.players.forEach((p: Player) => {
+                            if (p.id !== player.id && !p.hasFolded) {
+                                p.actedInRound = false;
+                            }
+                        });
+                    }
                 }
                 break;
             case 'check':
-                // No change in balance or pot
                 break;
         }
-        return newState;
-    }
+
+        const roundOverState = checkAndFinalizeRound(newState);
+        if (roundOverState.phase !== 'betting') return roundOverState;
+        
+        roundOverState.currentPlayerIndex = (playerIndex + 1) % roundOverState.players.length;
+        
+        return roundOverState;
+    }, []);
+
+    const handlePlayerAction = useCallback((action: PlayerAction) => {
+        if (isProcessing || gameState.phase !== 'betting') return;
+        const playerIndex = gameState.players.findIndex(p => p.id === user.uid);
+        if (playerIndex === -1 || gameState.currentPlayerIndex !== playerIndex) return;
+        
+        setIsProcessing(true);
+        const newState = processMove(gameState, playerIndex, action);
+        setGameState(newState);
+    }, [gameState, user, isProcessing, processMove]);
+
+    useEffect(() => {
+        const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+        if (gameState.phase === 'betting' && currentPlayer && currentPlayer.isAI && !currentPlayer.hasFolded) {
+            const timeoutId = setTimeout(() => {
+                const aiAction = makeAIMove(currentPlayer, gameState);
+                const newState = processMove(gameState, gameState.currentPlayerIndex, aiAction);
+                setGameState(newState);
+            }, 1000); // AI "thinking" time
+            return () => clearTimeout(timeoutId);
+        } else {
+             setIsProcessing(false);
+        }
+    }, [gameState, processMove]);
+    
 
     const checkAndFinalizeRound = (state: GameState): GameState => {
         const activePlayers = state.players.filter(p => !p.hasFolded);
         
-        // Round ends if only one player hasn't folded
         if (activePlayers.length <= 1) {
             state.phase = 'round-over';
-            const winner = activePlayers[0]; // The last one standing
+            const winner = activePlayers[0];
             if (winner) {
                 const winnerInState = state.players.find(p => p.id === winner.id)!;
                 winnerInState.balance += state.pot;
@@ -106,12 +136,11 @@ export const useGameEngine = (initialState: GameState, user: any) => {
             return state;
         }
 
-        const allPlayersCalledOrChecked = activePlayers.every(p => p.lastAction && ['call', 'check', 'bet', 'raise'].includes(p.lastAction));
+        const allHaveActed = activePlayers.every(p => p.actedInRound);
         const allBetsEqual = new Set(activePlayers.map(p => p.currentBet)).size === 1;
 
-        if (allPlayersCalledOrChecked && allBetsEqual) {
+        if (allHaveActed && allBetsEqual && state.lastBet > 0) {
             
-            // Failsafe: Re-evaluate hands right before showdown to ensure data is correct.
             activePlayers.forEach(p => {
                 const evaluation = evaluateHand(p.hand);
                 p.handScore = evaluation.score;
@@ -143,56 +172,6 @@ export const useGameEngine = (initialState: GameState, user: any) => {
         return state;
     };
     
-    const handlePlayerAction = useCallback(async (action: PlayerAction) => {
-        if (isProcessing || gameState.phase !== 'betting') return;
-        
-        setIsProcessing(true);
-        
-        let currentState = { ...gameState };
-        const playerIndex = currentState.players.findIndex(p => p.id === user.uid);
-        if (playerIndex === -1 || currentState.currentPlayerIndex !== playerIndex) {
-            setIsProcessing(false);
-            return;
-        }
-
-        currentState = processPlayerMove(currentState.players[playerIndex], action, currentState);
-        
-        // Check for round end after player move
-        let finalState = checkAndFinalizeRound(currentState);
-        if (finalState.phase === 'round-over') {
-            setGameState(finalState);
-            setIsProcessing(false);
-            return;
-        }
-
-        finalState.currentPlayerIndex = (playerIndex + 1) % finalState.players.length;
-        setGameState(finalState); // Update state to show player's move
-        
-        // AI moves
-        setTimeout(() => {
-            let aiState = JSON.parse(JSON.stringify(finalState));
-            let turn = 0;
-            const maxTurns = aiState.players.length;
-
-            while (turn < maxTurns && aiState.players[aiState.currentPlayerIndex].isAI) {
-                const aiPlayer = aiState.players[aiState.currentPlayerIndex];
-                if (!aiPlayer.hasFolded) {
-                    const aiAction = makeAIMove(aiPlayer, aiState);
-                    aiState = processPlayerMove(aiPlayer, aiAction, aiState);
-                }
-                
-                aiState = checkAndFinalizeRound(aiState);
-                if (aiState.phase === 'round-over') break;
-
-                aiState.currentPlayerIndex = (aiState.currentPlayerIndex + 1) % aiState.players.length;
-                turn++;
-            }
-            setGameState(aiState);
-            setIsProcessing(false);
-        }, 1000);
-        
-    }, [gameState, user, isProcessing]);
-
     const handleRejoinTieBreak = () => {
         setGameState(prev => {
             const newState = JSON.parse(JSON.stringify(prev));
@@ -203,7 +182,6 @@ export const useGameEngine = (initialState: GameState, user: any) => {
                 player.isReadyForNextRound = true;
             }
 
-            // If all living players are ready, start the next round
             const livingPlayers = newState.players.filter((p: Player) => p.balance + p.currentBet > 0);
             const allReady = livingPlayers.every((p: Player) => p.isReadyForNextRound);
             if(allReady) {
@@ -220,12 +198,11 @@ export const useGameEngine = (initialState: GameState, user: any) => {
             let newState = JSON.parse(JSON.stringify(stateToStartFrom));
             
             if (!isTieBreaker) {
-                newState.pot = 0; // Reset pot only if it's not a tie-breaker
+                newState.pot = 0;
             }
 
             const deck = shuffleDeck(createDeck());
             newState.players.forEach((p: Player) => {
-                // In a tie-breaker, only deal to tied players or those who rejoined
                 const canPlay = !isTieBreaker || (newState.tiedPlayerIds && newState.tiedPlayerIds.includes(p.id)) || p.isReadyForNextRound;
 
                 if (p.balance > 0 && canPlay) {
@@ -242,6 +219,7 @@ export const useGameEngine = (initialState: GameState, user: any) => {
                 p.currentBet = 0;
                 p.lastAction = null;
                 p.isReadyForNextRound = false;
+                p.actedInRound = false;
             });
 
             newState.phase = 'betting';
@@ -259,7 +237,6 @@ export const useGameEngine = (initialState: GameState, user: any) => {
         }
     };
 
-    // Initial hand evaluation on component mount
     useEffect(() => {
         if (initialState) {
             setGameState(initialState);

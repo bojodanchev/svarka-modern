@@ -22,6 +22,7 @@ export interface Player {
   handRank: number; // 0: High Card, 1: Pair, 2: Triple, 3: Svarka
   handDescription: string;
   lastAction: PlayerActionType;
+  actedInRound?: boolean;
   isReadyForNextRound?: boolean;
 }
 
