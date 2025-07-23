@@ -9,6 +9,7 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import * as logger from "firebase-functions/logger";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -69,43 +70,29 @@ const calculateScore = (hand: Card[]): number => {
 const aiNames = ["Мария", "Петър", "Георги", "Иван", "Елена", "Димитър", "София", "Никола"];
 
 const makeAIMove = (player: Player, gameState: any): any => {
-    // A more sophisticated AI would consider the pot size, other players' bets, etc.
     const score = player.score;
-
-    // Strong hand
     if (score > 20 && Math.random() > 0.4) {
         const raiseAmount = Math.min(player.balance, gameState.lastBet + 20 + Math.floor(Math.random() * 30));
         if (raiseAmount > gameState.lastBet) return { type: 'raise', amount: raiseAmount };
     }
-    
-    // Decent hand
     if (score > 14 && Math.random() > 0.3) {
         if (gameState.lastBet > 0) return { type: 'call' };
         return { type: 'bet', amount: Math.min(player.balance, 10) };
     }
-
-    // Weak hand
     if (gameState.lastBet > player.balance * 0.3 && Math.random() > 0.5) {
         return { type: 'fold' };
     }
-
-    // Default to call or check
     return { type: 'call' };
 };
 
 
 export const createAIGame = onCall(async (request) => {
     const uid = request.auth?.uid;
-    if (!uid) {
-        throw new HttpsError("unauthenticated", "You must be logged in to create a game.");
-    }
+    if (!uid) throw new HttpsError("unauthenticated", "You must be logged in to create a game.");
     
     const { lobbyId } = request.data;
-    if (!lobbyId) {
-        throw new HttpsError("invalid-argument", "Lobby ID must be provided.");
-    }
+    if (!lobbyId) throw new HttpsError("invalid-argument", "Lobby ID must be provided.");
 
-    // Lobby definitions - should match the client
     const lobbies: any = {
       'beginner': { name: 'Маса за Начинаещи', minBet: 10, maxBet: 50, maxPlayers: 4 },
       'intermediate': { name: 'Клуб "Свраката"', minBet: 50, maxBet: 200, maxPlayers: 6 },
@@ -113,20 +100,16 @@ export const createAIGame = onCall(async (request) => {
       'legendary': { name: 'Залата на Легендите', minBet: 500, maxBet: 5000, maxPlayers: 9 },
     };
     const lobby = lobbies[lobbyId];
-    if (!lobby) {
-        throw new HttpsError("not-found", "Lobby not found.");
-    }
+    if (!lobby) throw new HttpsError("not-found", "Lobby not found.");
 
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
-    if (!userDoc.exists) {
-        throw new HttpsError("not-found", "User not found.");
-    }
+    if (!userDoc.exists) throw new HttpsError("not-found", "User not found.");
     const userData = userDoc.data();
     
     const humanPlayer: Player = {
         id: uid,
-        name: userData?.username || 'Играч', // Use the username from the database
+        name: userData?.username || 'Играч',
         hand: [],
         balance: userData?.balance || 1000,
         currentBet: 0, hasFolded: false, isAI: false, score: 0, lastAction: null
@@ -144,7 +127,7 @@ export const createAIGame = onCall(async (request) => {
         usedNames.add(aiName);
         players.push({
             id: `ai_${i}_${Date.now()}`, name: aiName,
-            hand: [], balance: 1000, // AI starts with a standard balance
+            hand: [], balance: 1000,
             currentBet: 0, hasFolded: false, isAI: true, score: 0, lastAction: null
         });
     }
@@ -193,26 +176,25 @@ export const gameAction = onCall(async (request) => {
         if (!gameState) throw new HttpsError("internal", "Game state is missing.");
         
         if (action.type === 'start_new_round') {
-            // Re-deal, reset bets, etc.
+            if (gameState.phase !== 'round-over') throw new HttpsError("failed-precondition", "Cannot start a new round yet.");
+            
             gameState.players.forEach((p: Player) => {
-                p.hand = [];
-                p.currentBet = 0;
-                p.hasFolded = false;
-                p.score = 0;
-                p.lastAction = null;
+                p.hand = []; p.currentBet = 0; p.hasFolded = false; p.score = 0; p.lastAction = null;
             });
             const deck = shuffleDeck(createDeck());
             gameState.players.forEach((p: Player) => {
-                p.hand = deck.splice(0, 3);
-                p.score = calculateScore(p.hand);
+                if (p.balance > 0) {
+                    p.hand = deck.splice(0, 3);
+                    p.score = calculateScore(p.hand);
+                }
             });
             gameState.phase = 'betting';
             gameState.currentPlayerIndex = 0;
             gameState.pot = 0;
             gameState.lastBet = 0;
             gameState.roundWinner = null;
+
         } else {
-            // --- Human Player's Turn ---
             const playerIndex = gameState.players.findIndex((p: Player) => p.id === uid);
             if (playerIndex === -1) throw new HttpsError("failed-precondition", "You are not a player.");
             if (gameState.currentPlayerIndex !== playerIndex) throw new HttpsError("failed-precondition", "It's not your turn.");
@@ -221,108 +203,91 @@ export const gameAction = onCall(async (request) => {
             
             gameState.currentPlayerIndex = (playerIndex + 1) % gameState.players.length;
 
-            // --- AI Players' Turns ---
-            while (gameState.players[gameState.currentPlayerIndex].isAI && gameState.phase === 'betting') {
+            let currentTurn = 0;
+            const maxTurns = gameState.players.length * 2;
+
+            while (currentTurn < maxTurns && gameState.players[gameState.currentPlayerIndex].isAI && gameState.phase === 'betting') {
                 const aiPlayer = gameState.players[gameState.currentPlayerIndex];
                 if (!aiPlayer.hasFolded) {
                     const aiAction = makeAIMove(aiPlayer, gameState);
                     processPlayerMove(aiPlayer, aiAction, gameState);
                 }
-
-                if (checkForRoundEnd(gameState)) {
-                    break; 
-                }
+                
+                if (await checkAndFinalizeRound(gameState, transaction)) break;
                 
                 gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+                currentTurn++;
             }
         }
         
-        await checkForRoundEndAndUpdateBalance(gameState, transaction);
+        await checkAndFinalizeRound(gameState, transaction);
 
         transaction.update(roomRef, gameState);
         return { success: true };
     });
 });
 
-// Helper function to process a single player's move
 const processPlayerMove = (player: Player, move: any, gameState: any) => {
+    player.lastAction = move.type;
     switch (move.type) {
         case 'fold':
             player.hasFolded = true;
-            player.lastAction = 'fold';
             break;
         case 'call':
             const callAmount = gameState.lastBet - player.currentBet;
-            if (player.balance < callAmount) throw new HttpsError("failed-precondition", "Insufficient funds to call.");
-            player.balance -= callAmount;
-            player.currentBet += callAmount;
-            gameState.pot += callAmount;
-            player.lastAction = 'call';
+            const amountToCall = Math.min(callAmount, player.balance);
+            player.balance -= amountToCall;
+            player.currentBet += amountToCall;
+            gameState.pot += amountToCall;
             break;
         case 'bet':
         case 'raise':
-            const betAmount = move.amount;
-            if (player.balance < betAmount) throw new HttpsError("failed-precondition", "Insufficient funds to bet/raise.");
-            if (move.type === 'raise' && betAmount <= gameState.lastBet) throw new HttpsError("invalid-argument", "Raise amount must be greater than the last bet.");
-            player.balance -= betAmount;
-            player.currentBet += betAmount;
-            gameState.pot += betAmount;
+            const totalBet = move.amount;
+            const requiredAmount = totalBet - player.currentBet;
+            
+            if (requiredAmount <= 0) return;
+            if (totalBet < gameState.lastBet) return;
+
+            const amountToBet = Math.min(requiredAmount, player.balance);
+            player.balance -= amountToBet;
+            player.currentBet += amountToBet;
+            gameState.pot += amountToBet;
             gameState.lastBet = player.currentBet;
-            player.lastAction = move.type;
             break;
     }
 }
 
-// Helper function to check for the end of a round
-const checkForRoundEnd = (gameState: any): boolean => {
-    const activePlayers = gameState.players.filter((p: Player) => !p.hasFolded);
-    if (activePlayers.length === 0) { // Handle rare case of all folding
-         gameState.phase = 'round-over';
-         return true;
-    }
-    const allBetsEqual = activePlayers.length > 0 && activePlayers.every((p: Player) => p.currentBet === gameState.lastBet);
+const checkAndFinalizeRound = async (gameState: any, transaction: admin.firestore.Transaction): Promise<boolean> => {
+    if (gameState.phase === 'round-over') return true;
 
-    if (activePlayers.length === 1 || allBetsEqual) {
-        const winner = activePlayers.reduce((best: Player, current: Player) => current.score > best.score ? current : best, activePlayers[0]);
-        if (winner) {
-            gameState.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.score };
-        }
+    const activePlayers = gameState.players.filter((p: Player) => !p.hasFolded && p.balance > 0);
+    if (activePlayers.length === 0) {
         gameState.phase = 'round-over';
         return true;
     }
-    return false;
-};
+    
+    const allPlayersActed = activePlayers.every((p: Player) => p.lastAction !== null);
+    const allBetsEqual = allPlayersActed && activePlayers.every((p: Player) => p.currentBet === gameState.lastBet);
 
-const checkForRoundEndAndUpdateBalance = async (gameState: any, transaction: admin.firestore.Transaction) => {
-    // ... (This function now combines the check and the balance update logic)
-    const activePlayers = gameState.players.filter((p: Player) => !p.hasFolded);
-    if(gameState.phase === 'round-over') return; // Already ended
-
-    const allBetsEqual = activePlayers.length > 0 && activePlayers.every((p: Player) => p.currentBet === gameState.lastBet);
-
-    if (activePlayers.length === 1 || allBetsEqual) {
+    if (activePlayers.length === 1 || (allBetsEqual && gameState.lastBet > 0)) {
         gameState.phase = 'round-over';
         const winner = activePlayers.reduce((best: Player, current: Player) => current.score > best.score ? current : best, activePlayers[0]);
         
         if (winner) {
             gameState.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.score };
-
-            // Update balance transactionally
             if (!winner.isAI) {
                 const winnerRef = db.collection('users').doc(winner.id);
-                try {
-                    const winnerDoc = await transaction.get(winnerRef);
-                    if (winnerDoc.exists) {
-                        const winnerData = winnerDoc.data();
-                        transaction.update(winnerRef, { balance: (winnerData?.balance || 0) + gameState.pot });
-                    }
-                } catch (e) {
-                    console.error("Error getting winner doc in transaction:", e);
+                const winnerDoc = await transaction.get(winnerRef);
+                if (winnerDoc.exists) {
+                    const winnerData = winnerDoc.data();
+                    transaction.update(winnerRef, { balance: (winnerData?.balance || 0) + gameState.pot });
                 }
             } else {
                  const winnerInState = gameState.players.find((p: Player) => p.id === winner.id);
                  if(winnerInState) winnerInState.balance += gameState.pot;
             }
         }
+        return true;
     }
+    return false;
 };
