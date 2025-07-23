@@ -41,8 +41,8 @@ const translateAction = (action: PlayerActionType | null): string => {
 };
 
 const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
-  const { user, userProfile } = useAuth();
-  const { gameState, handlePlayerAction, startNewRound, isProcessing, handleRejoinTieBreak } = useGameEngine(initialGameState, user);
+  const { user } = useAuth();
+  const { gameState, handlePlayerAction, startNewRound, isProcessing, handlePlayerRejoin, handleStartNextRoundWithoutPlayer } = useGameEngine(initialGameState, user);
   const [betAmount, setBetAmount] = useState(initialGameState.minBet || 20);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -73,22 +73,6 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
     }
   }, [messages]);
 
-  // AI logic for rejoining tie-break
-  useEffect(() => {
-    if (gameState.phase === 'tie-break') {
-      gameState.players.forEach(p => {
-        if (p.isAI && !gameState.tiedPlayerIds?.includes(p.id) && p.balance >= gameState.minBet) {
-          // AI will rejoin if it has a decent balance
-          if(p.balance > 500) {
-            // This logic would be inside the engine in a real scenario
-            // but for now, we simulate the action from the component
-          }
-        }
-      });
-    }
-  }, [gameState.phase]);
-
-
   if (!gameState || !user) {
     return <div>Loading game...</div>;
   }
@@ -111,11 +95,11 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
   }
 
   const handleSendMessage = async () => {
-    if (chatInput.trim() === '' || !user || !userProfile) return;
+    if (chatInput.trim() === '' || !user) return;
     const messagesRef = collection(db, `gameRooms/${tableId}/messages`);
     await addDoc(messagesRef, {
       timestamp: serverTimestamp(),
-      username: userProfile.username,
+      username: user.displayName || user.email, // Use user profile or email
       text: chatInput,
     });
     setChatInput('');
@@ -232,20 +216,23 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
                 Потът се прехвърля: ${gameState.pot}
               </p>
               
-              {amITied && <p className="text-secondary mt-2">Вие участвате автоматично.</p>}
+              {amITied && <p className="text-secondary mt-2">Вие участвате автоматично. Изчаквате...</p>}
               
               {canRejoin && !hasRejoined && (
-                <Button className="mt-4" onClick={handleRejoinTieBreak} disabled={isProcessing}>
-                  Плати ${gameState.minBet}, за да участваш
-                </Button>
+                <div className="mt-4 flex flex-col gap-2">
+                  <Button onClick={handlePlayerRejoin} disabled={isProcessing}>
+                    Плати ${gameState.minBet}, за да участваш
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleStartNextRoundWithoutPlayer} disabled={isProcessing}>
+                    Откажи се
+                  </Button>
+                </div>
               )}
 
               {hasRejoined && <p className="text-secondary mt-2">Платено! Изчаквате другите играчи...</p>}
 
               {!amITied && !canRejoin && !hasRejoined && (
-                  <Button className="mt-4" onClick={() => startNewRound(undefined, false)} disabled={isProcessing}>
-                    Започни нов рунд (без вас)
-                  </Button>
+                   <p className="text-muted-foreground mt-2">Изчаквате другите играчи...</p>
               )}
             </div>
           )}
@@ -343,12 +330,17 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
                     <h3 className="text-xl font-bold text-primary">Равенство!</h3>
                     <p className="text-md mt-2">Потът се прехвърля: ${gameState.pot}</p>
                     
-                    {amITied && <p className="text-secondary mt-2 text-sm">Вие участвате автоматично.</p>}
+                    {amITied && <p className="text-secondary mt-2 text-sm">Вие участвате автоматично. Изчаквате...</p>}
                     
                     {canRejoin && !hasRejoined && (
-                        <Button className="mt-4" onClick={handleRejoinTieBreak} disabled={isProcessing} size="sm">
-                        Плати ${gameState.minBet}, за да участваш
-                        </Button>
+                        <div className="mt-4 flex flex-col gap-2">
+                            <Button onClick={handlePlayerRejoin} disabled={isProcessing} size="sm">
+                                Плати ${gameState.minBet}, за да участваш
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={handleStartNextRoundWithoutPlayer} disabled={isProcessing}>
+                                Откажи се
+                            </Button>
+                        </div>
                     )}
 
                     {hasRejoined && <p className="text-secondary mt-2 text-sm">Платено! Изчаквате...</p>}

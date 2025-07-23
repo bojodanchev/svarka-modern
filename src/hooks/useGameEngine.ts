@@ -182,25 +182,83 @@ export const useGameEngine = (initialState: GameState, user: any) => {
         return state;
     };
     
-    const handleRejoinTieBreak = () => {
+    const handlePlayerRejoin = () => {
         setGameState(prev => {
-            const newState = JSON.parse(JSON.stringify(prev));
+            let newState = JSON.parse(JSON.stringify(prev));
             const player = newState.players.find((p: Player) => p.id === user.uid);
-            if (player && player.balance >= newState.minBet) {
-                player.balance -= newState.minBet;
-                newState.pot += newState.minBet;
+            if (player && !player.isReadyForNextRound) {
                 player.isReadyForNextRound = true;
+                if (!newState.tiedPlayerIds?.includes(player.id)) {
+                    player.balance -= newState.minBet;
+                    newState.pot += newState.minBet;
+                }
             }
-
-            const livingPlayers = newState.players.filter((p: Player) => p.balance + p.currentBet > 0);
-            const allReady = livingPlayers.every((p: Player) => p.isReadyForNextRound);
-            if(allReady) {
-               return startNewRound(newState, true);
-            }
-            
-            return newState;
+            // All necessary players are now ready, start the round
+            return startNewRound(newState, true);
         });
     };
+    
+    const handleStartNextRoundWithoutPlayer = () => {
+        setGameState(prev => {
+            let newState = JSON.parse(JSON.stringify(prev));
+            const player = newState.players.find((p: Player) => p.id === user.uid);
+            if (player) {
+                player.isReadyForNextRound = false;
+            }
+            return startNewRound(newState, true);
+        });
+    };
+
+    useEffect(() => {
+        // This effect automatically handles AI and tied player decisions for a tie-break
+        if (gameState.phase === 'tie-break' && user) {
+            let newState = JSON.parse(JSON.stringify(gameState));
+            let processed = false;
+
+            newState.players.forEach((p: Player) => {
+                if (p.isReadyForNextRound) return; // Already processed
+
+                if (newState.tiedPlayerIds?.includes(p.id)) {
+                    p.isReadyForNextRound = true;
+                    processed = true;
+                } else if (p.isAI) {
+                    if (p.balance >= newState.minBet && p.balance > newState.pot) { // AI rejoins if it has a good balance
+                        p.balance -= newState.minBet;
+                        newState.pot += newState.minBet;
+                        p.isReadyForNextRound = true;
+                    } else {
+                        p.isReadyForNextRound = false; // AI folds
+                    }
+                    processed = true;
+                }
+            });
+
+            if (processed) {
+                const humanPlayer = newState.players.find((p: Player) => p.id === user.uid);
+                // If human was in the tie or folded, the round can start right away
+                if (humanPlayer && humanPlayer.isReadyForNextRound !== false) {
+                     const allOthersReady = newState.players.filter((p: Player) => p.id !== user.uid).every((p: Player) => p.isReadyForNextRound !== undefined);
+                     if(allOthersReady) {
+                         // Awaiting human action, just update the state
+                         setGameState(newState);
+                         return;
+                     }
+                }
+                
+                // If the game can proceed without human input, start new round
+                const nonHumanPlayers = newState.players.filter((p: Player) => p.id !== user.uid);
+                const allAIsReady = nonHumanPlayers.every((p: Player) => p.isReadyForNextRound !== undefined);
+                const humanNotInTie = humanPlayer && !newState.tiedPlayerIds?.includes(humanPlayer.id);
+
+                if (allAIsReady && !humanNotInTie) {
+                    setGameState(startNewRound(newState, true));
+                } else {
+                    setGameState(newState);
+                }
+            }
+        }
+    }, [gameState.phase, user]);
+
 
     const startNewRound = (currentState?: GameState, isTieBreaker = false) => {
         const roundStarter = (prev: GameState) => {
@@ -213,9 +271,9 @@ export const useGameEngine = (initialState: GameState, user: any) => {
 
             const deck = shuffleDeck(createDeck());
             newState.players.forEach((p: Player) => {
-                const canPlay = !isTieBreaker || (newState.tiedPlayerIds && newState.tiedPlayerIds.includes(p.id)) || p.isReadyForNextRound;
+                const canPlay = isTieBreaker ? p.isReadyForNextRound : p.balance > 0;
 
-                if (p.balance > 0 && canPlay) {
+                if (canPlay) {
                     p.hand = deck.splice(0, 3);
                     const evaluation = evaluateHand(p.hand);
                     p.handScore = evaluation.score;
@@ -253,5 +311,5 @@ export const useGameEngine = (initialState: GameState, user: any) => {
         }
     }, [initialState]);
     
-    return { gameState, handlePlayerAction, startNewRound, isProcessing, handleRejoinTieBreak };
+    return { gameState, handlePlayerAction, startNewRound, isProcessing, handlePlayerRejoin, handleStartNextRoundWithoutPlayer };
 }; 
