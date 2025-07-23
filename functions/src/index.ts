@@ -15,4 +15,4 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // Here we can add any new, simple cloud functions we may need in the future.
-// For now, it will remain clean.
+// For now, it will remain clean. 
