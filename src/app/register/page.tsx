@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -20,9 +21,16 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (username.trim().length < 3) {
+        setError("Потребителското име трябва да е поне 3 символа.");
+        return;
+    }
     try {
       const userCredential = await registerWithEmail(email, password);
       const user = userCredential.user;
+      
+      // Update the user's auth profile with the display name
+      await updateProfile(user, { displayName: username });
       
       // Save user data to Firestore
       await setDoc(doc(db, "users", user.uid), {
