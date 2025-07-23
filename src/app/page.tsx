@@ -26,7 +26,7 @@ export default function Home() {
           </p>
 
           <div className="space-y-4 md:space-y-0 md:space-x-4">
-            <Link href="/play">
+            <Link href="/tables">
               <Button className="w-full md:w-1/3">Играй сега</Button>
             </Link>
           </div>

@@ -13,7 +13,7 @@ const Header = () => {
   const [isSheetOpen, setSheetOpen] = useState(false);
 
   const navLinks = [
-    { href: '/play', label: 'Играй' },
+    { href: '/tables', label: 'Играй' },
     { href: '/rules', label: 'Правила' },
     { href: '/tables', label: 'Маси' },
     { href: '/tournaments', label: 'Турнири' },
