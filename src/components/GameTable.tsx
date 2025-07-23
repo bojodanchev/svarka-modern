@@ -37,7 +37,7 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
   
   const isTied = gameState.phase === 'tie-break';
   const amITied = user && gameState.tiedPlayerIds?.includes(user.uid);
-  const canRejoin = user && !gameState.tiedPlayerIds?.includes(user.uid) && gameState.players.find(p => p.id === user.uid)?.balance ?? 0 >= gameState.minBet;
+  const canRejoin = user && (!gameState.tiedPlayerIds?.includes(user.uid)) && ((gameState.players.find(p => p.id === user.uid)?.balance ?? 0) >= gameState.minBet);
   const hasRejoined = user && gameState.players.find(p => p.id === user.uid)?.isReadyForNextRound;
 
   // AI logic for rejoining tie-break
