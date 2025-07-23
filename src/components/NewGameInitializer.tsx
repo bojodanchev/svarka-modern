@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { GameState, Lobby, Player } from '@/lib/game-logic/types';
 import GameTable from '@/components/GameTable';
 import { createDeck, shuffleDeck } from '@/lib/game-logic/deck';
-import { calculateScore } from '@/lib/game-logic/scoring';
+import { evaluateHand } from '@/lib/game-logic/scoring'; // Corrected import
 
 const aiNames = ["Мария", "Петър", "Георги", "Иван", "Елена", "Димитър", "София", "Никола"];
 
@@ -19,7 +19,9 @@ const createNewGame = (lobby: Lobby, user: any): GameState => {
     currentBet: 0,
     hasFolded: false,
     isAI: false,
-    score: 0,
+    handScore: 0,
+    handRank: 0,
+    handDescription: '',
     lastAction: null,
   };
 
@@ -41,7 +43,9 @@ const createNewGame = (lobby: Lobby, user: any): GameState => {
       currentBet: 0,
       hasFolded: false,
       isAI: true,
-      score: 0,
+      handScore: 0,
+      handRank: 0,
+      handDescription: '',
       lastAction: null,
     });
   }
@@ -49,7 +53,10 @@ const createNewGame = (lobby: Lobby, user: any): GameState => {
   const deck = shuffleDeck(createDeck());
   players.forEach(p => {
     p.hand = deck.splice(0, 3);
-    p.score = calculateScore(p.hand);
+    const evaluation = evaluateHand(p.hand);
+    p.handScore = evaluation.score;
+    p.handRank = evaluation.rank;
+    p.handDescription = evaluation.description;
   });
 
   return {

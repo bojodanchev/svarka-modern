@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { GameState, Player, PlayerAction } from '@/lib/game-logic/types';
 import { shuffleDeck, createDeck } from '@/lib/game-logic/deck';
 import { evaluateHand } from '@/lib/game-logic/scoring'; // Updated import
@@ -194,9 +194,11 @@ export const useGameEngine = (initialState: GameState, user: any) => {
     };
 
     // Initial hand evaluation on component mount
-    useState(() => {
-        startNewRound();
-    });
+    useEffect(() => {
+        if (initialState) {
+            setGameState(initialState);
+        }
+    }, [initialState]);
     
     return { gameState, handlePlayerAction, startNewRound, isProcessing };
 }; 
