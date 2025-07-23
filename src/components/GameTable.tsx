@@ -169,7 +169,7 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
             );
           })}
           {isMyTurn && gameState.phase === 'betting' && (
-            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-card/80 backdrop-blur-sm p-4 rounded-lg border border-secondary/20 z-20">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4 bg-card/80 backdrop-blur-sm p-4 rounded-lg border border-secondary/20 z-20">
               <Input
                 type="number"
                 value={betAmount}
@@ -296,7 +296,7 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
             <h2 className="text-2xl font-bold text-secondary">Пот: ${gameState.pot}</h2>
         </div>
         {isMyTurn && gameState.phase === 'betting' && (
-          <div className="fixed bottom-0 left-0 right-0 flex items-center justify-around space-x-1 bg-card/90 backdrop-blur-sm p-2 border-t border-secondary/20 z-50">
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-lg mx-auto flex items-center justify-around space-x-1 bg-card/90 backdrop-blur-sm p-2 border-t border-secondary/20 z-50">
             <Input type="number" value={betAmount} onChange={(e) => setBetAmount(Math.max(0, parseInt(e.target.value, 10)))} className="w-16 bg-input text-foreground text-xs p-1" disabled={isProcessing}/>
             <Button size="sm" onClick={() => handleActionClick('bet')} disabled={isProcessing}>Заложи</Button>
             <Button size="sm" onClick={() => handleActionClick('raise')} disabled={isProcessing}>Вдигни</Button>
