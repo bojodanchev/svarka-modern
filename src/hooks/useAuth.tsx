@@ -2,10 +2,19 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { onAuthStateChanged, User, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously, UserCredential } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+
+interface UserProfile {
+  uid: string;
+  email: string | null;
+  username: string;
+  balance: number;
+}
 
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
   isLoading: boolean;
   logout: () => void;
   registerWithEmail: (email: string, password: string) => Promise<UserCredential>;
@@ -17,16 +26,32 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setUser(user);
-      setIsLoading(false);
+      if (!user) {
+        setUserProfile(null);
+        setIsLoading(false);
+      }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      const unsubProfile = onSnapshot(doc(db, "users", user.uid), (doc) => {
+        if (doc.exists()) {
+          setUserProfile(doc.data() as UserProfile);
+        }
+        setIsLoading(false);
+      });
+      return () => unsubProfile();
+    }
+  }, [user]);
 
   const logout = async () => {
     await signOut(auth);
@@ -46,6 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = {
     user,
+    userProfile,
     isLoading,
     logout,
     registerWithEmail,

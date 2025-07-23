@@ -126,7 +126,7 @@ export const createAIGame = onCall(async (request) => {
     
     const humanPlayer: Player = {
         id: uid,
-        name: userData?.username || 'Играч',
+        name: userData?.username || 'Играч', // Use the username from the database
         hand: [],
         balance: userData?.balance || 1000,
         currentBet: 0, hasFolded: false, isAI: false, score: 0, lastAction: null
@@ -180,12 +180,8 @@ export const gameAction = onCall(async (request) => {
     const uid = request.auth?.uid;
     const { tableId, action } = request.data;
 
-    if (!uid) {
-        throw new HttpsError("unauthenticated", "You must be logged in.");
-    }
-    if (!tableId || !action || !action.type) {
-        throw new HttpsError("invalid-argument", "Table ID and action are required.");
-    }
+    if (!uid) throw new HttpsError("unauthenticated", "You must be logged in.");
+    if (!tableId || !action || !action.type) throw new HttpsError("invalid-argument", "Table ID and action are required.");
 
     const roomRef = db.collection('gameRooms').doc(tableId);
 
@@ -196,7 +192,6 @@ export const gameAction = onCall(async (request) => {
         const gameState = roomDoc.data();
         if (!gameState) throw new HttpsError("internal", "Game state is missing.");
         
-        // --- Action Processing ---
         if (action.type === 'start_new_round') {
             // Re-deal, reset bets, etc.
             gameState.players.forEach((p: Player) => {
@@ -217,40 +212,37 @@ export const gameAction = onCall(async (request) => {
             gameState.lastBet = 0;
             gameState.roundWinner = null;
         } else {
+            // --- Human Player's Turn ---
             const playerIndex = gameState.players.findIndex((p: Player) => p.id === uid);
             if (playerIndex === -1) throw new HttpsError("failed-precondition", "You are not a player.");
             if (gameState.currentPlayerIndex !== playerIndex) throw new HttpsError("failed-precondition", "It's not your turn.");
             
             processPlayerMove(gameState.players[playerIndex], action, gameState);
+            
+            gameState.currentPlayerIndex = (playerIndex + 1) % gameState.players.length;
 
-            let nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-
-            while (gameState.players[nextPlayerIndex].isAI && gameState.phase === 'betting') {
-                const aiPlayer = gameState.players[nextPlayerIndex];
-                if (aiPlayer.hasFolded) {
-                     nextPlayerIndex = (nextPlayerIndex + 1) % gameState.players.length;
-                     if (nextPlayerIndex === playerIndex) break;
-                     continue;
+            // --- AI Players' Turns ---
+            while (gameState.players[gameState.currentPlayerIndex].isAI && gameState.phase === 'betting') {
+                const aiPlayer = gameState.players[gameState.currentPlayerIndex];
+                if (!aiPlayer.hasFolded) {
+                    const aiAction = makeAIMove(aiPlayer, gameState);
+                    processPlayerMove(aiPlayer, aiAction, gameState);
                 }
-                const aiAction = makeAIMove(aiPlayer, gameState);
-                processPlayerMove(aiPlayer, aiAction, gameState);
 
-                const roundEnded = await checkForRoundEnd(gameState, transaction);
-                if (roundEnded) break;
-
-                nextPlayerIndex = (nextPlayerIndex + 1) % gameState.players.length;
-                if (nextPlayerIndex === playerIndex) break; 
+                if (checkForRoundEnd(gameState)) {
+                    break; 
+                }
+                
+                gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
             }
-             gameState.currentPlayerIndex = nextPlayerIndex;
         }
-
-        await checkForRoundEnd(gameState, transaction); // Final check after all turns
+        
+        await checkForRoundEndAndUpdateBalance(gameState, transaction);
 
         transaction.update(roomRef, gameState);
         return { success: true };
     });
 });
-
 
 // Helper function to process a single player's move
 const processPlayerMove = (player: Player, move: any, gameState: any) => {
@@ -282,31 +274,55 @@ const processPlayerMove = (player: Player, move: any, gameState: any) => {
 }
 
 // Helper function to check for the end of a round
-const checkForRoundEnd = async (gameState: any, transaction: admin.firestore.Transaction): Promise<boolean> => {
+const checkForRoundEnd = (gameState: any): boolean => {
     const activePlayers = gameState.players.filter((p: Player) => !p.hasFolded);
     if (activePlayers.length === 0) { // Handle rare case of all folding
          gameState.phase = 'round-over';
          return true;
     }
-    const allBetsEqual = activePlayers.every((p: Player) => p.currentBet === gameState.lastBet);
+    const allBetsEqual = activePlayers.length > 0 && activePlayers.every((p: Player) => p.currentBet === gameState.lastBet);
 
     if (activePlayers.length === 1 || allBetsEqual) {
         const winner = activePlayers.reduce((best: Player, current: Player) => current.score > best.score ? current : best, activePlayers[0]);
         if (winner) {
-            if (!winner.isAI) {
-                const winnerRef = db.collection('users').doc(winner.id);
-                const winnerDoc = await transaction.get(winnerRef);
-                if(winnerDoc.exists) {
-                     const winnerData = winnerDoc.data();
-                     transaction.update(winnerRef, { balance: winnerData?.balance + gameState.pot });
-                }
-            } else {
-                 winner.balance += gameState.pot;
-            }
             gameState.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.score };
         }
         gameState.phase = 'round-over';
         return true;
     }
     return false;
-}
+};
+
+const checkForRoundEndAndUpdateBalance = async (gameState: any, transaction: admin.firestore.Transaction) => {
+    // ... (This function now combines the check and the balance update logic)
+    const activePlayers = gameState.players.filter((p: Player) => !p.hasFolded);
+    if(gameState.phase === 'round-over') return; // Already ended
+
+    const allBetsEqual = activePlayers.length > 0 && activePlayers.every((p: Player) => p.currentBet === gameState.lastBet);
+
+    if (activePlayers.length === 1 || allBetsEqual) {
+        gameState.phase = 'round-over';
+        const winner = activePlayers.reduce((best: Player, current: Player) => current.score > best.score ? current : best, activePlayers[0]);
+        
+        if (winner) {
+            gameState.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.score };
+
+            // Update balance transactionally
+            if (!winner.isAI) {
+                const winnerRef = db.collection('users').doc(winner.id);
+                try {
+                    const winnerDoc = await transaction.get(winnerRef);
+                    if (winnerDoc.exists) {
+                        const winnerData = winnerDoc.data();
+                        transaction.update(winnerRef, { balance: (winnerData?.balance || 0) + gameState.pot });
+                    }
+                } catch (e) {
+                    console.error("Error getting winner doc in transaction:", e);
+                }
+            } else {
+                 const winnerInState = gameState.players.find((p: Player) => p.id === winner.id);
+                 if(winnerInState) winnerInState.balance += gameState.pot;
+            }
+        }
+    }
+};

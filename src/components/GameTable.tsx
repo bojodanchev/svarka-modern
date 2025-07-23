@@ -45,7 +45,7 @@ const translateAction = (action: PlayerActionType | null): string => {
 };
 
 const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [betAmount, setBetAmount] = useState(20);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -85,11 +85,11 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
   };
 
   const handleSendMessage = async () => {
-    if (chatInput.trim() === '' || !user) return;
+    if (chatInput.trim() === '' || !user || !userProfile) return;
     const messagesRef = collection(db, `gameRooms/${tableId}/messages`);
     await addDoc(messagesRef, {
       timestamp: serverTimestamp(),
-      username: user.displayName || 'Анонимен',
+      username: userProfile.username, // Use the reliable username from the profile
       text: chatInput,
       isSystem: false,
     });
