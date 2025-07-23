@@ -39,6 +39,16 @@ const makeAIMove = (player: Player, gameState: GameState): PlayerAction => {
     return { type: 'check' };
 };
 
+const getNextActivePlayerIndex = (state: GameState, startIndex: number): number => {
+    let nextIndex = (startIndex + 1) % state.players.length;
+    let guard = 0; // Failsafe to prevent infinite loops if all are folded
+    while(state.players[nextIndex].hasFolded && guard < state.players.length * 2) {
+        nextIndex = (nextIndex + 1) % state.players.length;
+        guard++;
+    }
+    return nextIndex;
+};
+
 export const useGameEngine = (initialState: GameState, user: any) => {
     const [gameState, setGameState] = useState<GameState>(initialState);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -92,7 +102,7 @@ export const useGameEngine = (initialState: GameState, user: any) => {
         const roundOverState = checkAndFinalizeRound(newState);
         if (roundOverState.phase !== 'betting') return roundOverState;
         
-        roundOverState.currentPlayerIndex = (playerIndex + 1) % roundOverState.players.length;
+        roundOverState.currentPlayerIndex = getNextActivePlayerIndex(roundOverState, playerIndex);
         
         return roundOverState;
     }, []);
@@ -114,7 +124,7 @@ export const useGameEngine = (initialState: GameState, user: any) => {
                 const aiAction = makeAIMove(currentPlayer, gameState);
                 const newState = processMove(gameState, gameState.currentPlayerIndex, aiAction);
                 setGameState(newState);
-            }, 1000); // AI "thinking" time
+            }, 3000); // AI "thinking" time
             return () => clearTimeout(timeoutId);
         } else {
              setIsProcessing(false);
