@@ -1,30 +1,37 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { GameState, Player, PlayerAction, Card } from '@/lib/game-logic/types';
+import { useState, useCallback } from 'react';
+import { GameState, Player, PlayerAction } from '@/lib/game-logic/types';
 import { shuffleDeck, createDeck } from '@/lib/game-logic/deck';
-import { calculateScore } from '@/lib/game-logic/scoring';
-
-const aiNames = ["Мария", "Петър", "Георги", "Иван", "Елена", "Димитър", "София", "Никола"];
+import { evaluateHand } from '@/lib/game-logic/scoring'; // Updated import
 
 const makeAIMove = (player: Player, gameState: GameState): PlayerAction => {
-    const score = player.score;
+    const handRank = player.handRank;
+    const handScore = player.handScore;
 
-    if (score > 20 && Math.random() > 0.4) {
+    // Strong hand (Svarka or Triple)
+    if (handRank > 1 && Math.random() > 0.3) {
         const raiseAmount = Math.min(player.balance, gameState.lastBet + 20 + Math.floor(Math.random() * 30));
         if (raiseAmount > gameState.lastBet) return { type: 'raise', amount: raiseAmount };
+        return { type: 'call' };
     }
     
-    if (score > 14 && Math.random() > 0.3) {
+    // Decent hand (Pair)
+    if (handRank === 1 && handScore > 16 && Math.random() > 0.4) {
         if (gameState.lastBet > 0) return { type: 'call' };
         return { type: 'bet', amount: Math.min(player.balance, 10) };
     }
 
-    if (gameState.lastBet > player.balance * 0.3 && Math.random() > 0.5) {
+    // Weak hand
+    if (gameState.lastBet > player.balance * 0.4 && Math.random() > 0.6) {
         return { type: 'fold' };
     }
 
-    return { type: 'call' };
+    // Default to call or check
+    if (gameState.lastBet > 0) {
+        return { type: 'call' };
+    }
+    return { type: 'check' };
 };
 
 
@@ -33,60 +40,81 @@ export const useGameEngine = (initialState: GameState, user: any) => {
     const [isProcessing, setIsProcessing] = useState(false);
 
     const processPlayerMove = (player: Player, move: PlayerAction, state: GameState): GameState => {
-        const newState = { ...state };
-        player.lastAction = move.type;
+        const newState = JSON.parse(JSON.stringify(state));
+        const playerInState = newState.players.find((p: Player) => p.id === player.id);
+        if (!playerInState) return newState;
+        
+        playerInState.lastAction = move.type;
 
         switch (move.type) {
             case 'fold':
-                player.hasFolded = true;
+                playerInState.hasFolded = true;
                 break;
             case 'call':
-                const callAmount = newState.lastBet - player.currentBet;
-                const amountToCall = Math.min(callAmount, player.balance);
-                player.balance -= amountToCall;
-                player.currentBet += amountToCall;
-                newState.pot += amountToCall;
+                const callAmount = newState.lastBet - playerInState.currentBet;
+                if (callAmount > 0) {
+                    const amountToCall = Math.min(callAmount, playerInState.balance);
+                    playerInState.balance -= amountToCall;
+                    playerInState.currentBet += amountToCall;
+                    newState.pot += amountToCall;
+                }
                 break;
             case 'bet':
             case 'raise':
                 const totalBet = move.amount || 0;
-                const requiredAmount = totalBet - player.currentBet;
+                const requiredAmount = totalBet - playerInState.currentBet;
                 
-                if (requiredAmount > 0 && totalBet >= newState.lastBet) {
-                    const amountToBet = Math.min(requiredAmount, player.balance);
-                    player.balance -= amountToBet;
-                    player.currentBet += amountToBet;
-                    newState.pot += amountToBet;
-                    newState.lastBet = player.currentBet;
+                if (requiredAmount > 0 && totalBet >= newState.lastBet && playerInState.balance >= requiredAmount) {
+                    playerInState.balance -= requiredAmount;
+                    playerInState.currentBet += requiredAmount;
+                    newState.pot += requiredAmount;
+                    newState.lastBet = playerInState.currentBet;
                 }
+                break;
+            case 'check':
+                // No change in balance or pot
                 break;
         }
         return newState;
     }
 
     const checkAndFinalizeRound = (state: GameState): GameState => {
-        if (state.phase === 'round-over') return state;
-
-        const activePlayers = state.players.filter(p => !p.hasFolded && p.balance > 0);
+        const activePlayers = state.players.filter(p => !p.hasFolded);
         
-        const allPlayersActed = activePlayers.every(p => p.lastAction !== null);
-        const allBetsEqual = activePlayers.every(p => p.currentBet === state.lastBet);
-
-        if (activePlayers.length <= 1 || (allPlayersActed && allBetsEqual)) {
+        // Round ends if only one player hasn't folded
+        if (activePlayers.length <= 1) {
             state.phase = 'round-over';
-            const winner = activePlayers.length > 0 ? activePlayers.reduce((best, current) => current.score > best.score ? current : best, activePlayers[0]) : null;
+            const winner = activePlayers[0]; // The last one standing
+            if (winner) {
+                const winnerInState = state.players.find(p => p.id === winner.id)!;
+                winnerInState.balance += state.pot;
+                state.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.handScore, description: "Всички други се отказаха" };
+            }
+            return state;
+        }
+
+        const allPlayersCalledOrChecked = activePlayers.every(p => p.lastAction && ['call', 'check', 'bet', 'raise'].includes(p.lastAction));
+        const allBetsEqual = new Set(activePlayers.map(p => p.currentBet)).size === 1;
+
+        if (allPlayersCalledOrChecked && allBetsEqual) {
+            state.phase = 'round-over';
+            
+            const sortedPlayers = [...activePlayers].sort((a, b) => {
+                if (b.handRank !== a.handRank) return b.handRank - a.handRank;
+                return b.handScore - a.handScore;
+            });
+
+            const winner = sortedPlayers[0];
             
             if (winner) {
-                state.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.score };
-                const winnerInState = state.players.find(p => p.id === winner.id);
-                if (winnerInState) {
-                    winnerInState.balance += state.pot;
-                }
+                const winnerInState = state.players.find(p => p.id === winner.id)!;
+                winnerInState.balance += state.pot;
+                state.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.handScore, description: winner.handDescription };
             }
         }
         return state;
     };
-
+    
     const handlePlayerAction = useCallback(async (action: PlayerAction) => {
         if (isProcessing || gameState.phase !== 'betting') return;
         
@@ -100,41 +128,60 @@ export const useGameEngine = (initialState: GameState, user: any) => {
         }
 
         currentState = processPlayerMove(currentState.players[playerIndex], action, currentState);
-        currentState.currentPlayerIndex = (playerIndex + 1) % currentState.players.length;
-
-        let turn = 0;
-        const maxTurns = currentState.players.length * 2; 
-
-        while (turn < maxTurns && currentState.players[currentState.currentPlayerIndex].isAI && currentState.phase === 'betting') {
-            const aiPlayer = currentState.players[currentState.currentPlayerIndex];
-            if (!aiPlayer.hasFolded) {
-                const aiAction = makeAIMove(aiPlayer, currentState);
-                currentState = processPlayerMove(aiPlayer, aiAction, currentState);
-            }
-            currentState = checkAndFinalizeRound(currentState);
-            if (currentState.phase === 'round-over') break;
-            currentState.currentPlayerIndex = (currentState.currentPlayerIndex + 1) % currentState.players.length;
-            turn++;
-        }
         
-        currentState = checkAndFinalizeRound(currentState);
-        setGameState(currentState);
-        setIsProcessing(false);
+        // Check for round end after player move
+        let finalState = checkAndFinalizeRound(currentState);
+        if (finalState.phase === 'round-over') {
+            setGameState(finalState);
+            setIsProcessing(false);
+            return;
+        }
+
+        finalState.currentPlayerIndex = (playerIndex + 1) % finalState.players.length;
+        setGameState(finalState); // Update state to show player's move
+        
+        // AI moves
+        setTimeout(() => {
+            let aiState = JSON.parse(JSON.stringify(finalState));
+            let turn = 0;
+            const maxTurns = aiState.players.length;
+
+            while (turn < maxTurns && aiState.players[aiState.currentPlayerIndex].isAI) {
+                const aiPlayer = aiState.players[aiState.currentPlayerIndex];
+                if (!aiPlayer.hasFolded) {
+                    const aiAction = makeAIMove(aiPlayer, aiState);
+                    aiState = processPlayerMove(aiPlayer, aiAction, aiState);
+                }
+                
+                aiState = checkAndFinalizeRound(aiState);
+                if (aiState.phase === 'round-over') break;
+
+                aiState.currentPlayerIndex = (aiState.currentPlayerIndex + 1) % aiState.players.length;
+                turn++;
+            }
+            setGameState(aiState);
+            setIsProcessing(false);
+        }, 1000); // Delay for AI "thinking" time
+        
     }, [gameState, user, isProcessing]);
 
     const startNewRound = () => {
         setGameState(prev => {
-            const newState = { ...prev };
+            let newState = JSON.parse(JSON.stringify(prev));
             const deck = shuffleDeck(createDeck());
-            newState.players.forEach(p => {
+            newState.players.forEach((p: Player) => {
                 p.hand = [];
                 p.currentBet = 0;
                 p.hasFolded = false;
-                p.score = 0;
                 p.lastAction = null;
-                 if (p.balance > 0) {
+                 if (p.balance > 0) { // Only deal to players with money
                     p.hand = deck.splice(0, 3);
-                    p.score = calculateScore(p.hand);
+                    const evaluation = evaluateHand(p.hand);
+                    p.handScore = evaluation.score;
+                    p.handRank = evaluation.rank;
+                    p.handDescription = evaluation.description;
+                } else {
+                    p.hasFolded = true; // Fold players with no money
                 }
             });
             newState.phase = 'betting';
@@ -145,6 +192,11 @@ export const useGameEngine = (initialState: GameState, user: any) => {
             return newState;
         });
     };
+
+    // Initial hand evaluation on component mount
+    useState(() => {
+        startNewRound();
+    });
     
     return { gameState, handlePlayerAction, startNewRound, isProcessing };
 }; 

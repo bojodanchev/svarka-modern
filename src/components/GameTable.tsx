@@ -129,11 +129,19 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
             </div>
           )}
           {gameState.phase === 'round-over' && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card/90 p-8 rounded-lg z-30 text-center">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] bg-card/90 p-8 rounded-lg z-30 text-center shadow-lg">
               <h3 className="text-2xl font-bold text-secondary">Край на рунда!</h3>
-              <p className="text-xl mt-2">
+              <p className="text-xl mt-4">
                 Победител: {gameState.roundWinner?.name}
               </p>
+               <p className="text-lg text-muted-foreground mt-1">
+                {gameState.roundWinner?.description} ({gameState.roundWinner?.score} точки)
+              </p>
+              <div className="flex justify-center space-x-2 my-4">
+                {gameState.roundWinner?.hand.map((card, i) => (
+                    <CardComponent key={i} card={card} />
+                ))}
+              </div>
               <Button
                 className="mt-4"
                 onClick={handleStartNewRound}
@@ -178,9 +186,20 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
         )}
          {gameState.phase === 'round-over' && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-card/90 p-6 rounded-lg text-center">
+            <div className="bg-card/90 p-6 rounded-lg text-center shadow-lg">
                 <h3 className="text-xl font-bold text-secondary">Край на рунда!</h3>
                 <p className="text-lg mt-2">Победител: {gameState.roundWinner?.name}</p>
+                 <p className="text-md text-muted-foreground mt-1">
+                  {gameState.roundWinner?.description} ({gameState.roundWinner?.score} точки)
+                </p>
+                <div className="flex justify-center space-x-2 my-3">
+                    {gameState.roundWinner?.hand.map((card, i) => (
+                        <div key={i} className="bg-white text-black rounded p-1 w-12 h-16 flex flex-col justify-between text-xs">
+                            <span className="font-bold">{card.rank}</span>
+                            <span>{card.suit}</span>
+                        </div>
+                    ))}
+                </div>
                 <Button className="mt-4" onClick={handleStartNewRound} disabled={isProcessing}>Нов рунд</Button>
             </div>
            </div>
