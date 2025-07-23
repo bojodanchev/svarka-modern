@@ -49,6 +49,23 @@ const translateAction = (action: PlayerActionType | null): string => {
     }
 };
 
+const getPlayerPosition = (index: number, count: number) => {
+    // We start at 90 degrees (bottom of the circle) and distribute players evenly.
+    const angle = (Math.PI / 2) + (index / count) * 2 * Math.PI;
+    // We use different radii for x and y to create an oval shape.
+    const xRadius = 45;
+    const yRadius = 38;
+    // Calculate the position, starting from a 50,50 center.
+    const x = 50 + xRadius * Math.cos(angle);
+    const y = 50 + yRadius * Math.sin(angle);
+    
+    return {
+        top: `${y}%`,
+        left: `${x}%`,
+        transform: 'translate(-50%, -50%)',
+    };
+};
+
 const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
   const { user } = useAuth();
   const { gameState, handlePlayerAction, startNewRound, isProcessing, handlePlayerRejoin, handleStartNextRoundWithoutPlayer } = useGameEngine(initialGameState, user);
@@ -132,17 +149,12 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
             </h2>
           </div>
           {gameState.players.map((player, index) => {
-            const positions = [
-              { top: '85%', left: '50%', transform: 'translate(-50%, -50%)' },
-              { top: '50%', left: '10%', transform: 'translate(-50%, -50%)' },
-              { top: '15%', left: '50%', transform: 'translate(-50%, -50%)' },
-              { top: '50%', left: '90%', transform: 'translate(-50%, -50%)' },
-            ];
+            const position = getPlayerPosition(index, gameState.players.length);
             return (
               <div
                 key={player.id}
                 className="absolute w-64 text-center p-4 z-10"
-                style={positions[index]}
+                style={position}
               >
                 <div
                   className={`bg-card rounded-lg p-4 border-2 ${
