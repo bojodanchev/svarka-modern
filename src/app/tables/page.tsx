@@ -5,9 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
-import { Loader2 } from 'lucide-react';
 
 interface Lobby {
   id: string;
@@ -28,24 +25,14 @@ const predefinedLobbies: Lobby[] = [
 export default function TablesPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
-  const [isCreatingLobby, setIsCreatingLobby] = useState<string | null>(null);
 
-  const handleJoinLobby = async (lobbyId: string) => {
+  const handleJoinLobby = (lobby: Lobby) => {
     if (!user) {
       router.push('/login?redirect=/tables');
       return;
     }
-    setIsCreatingLobby(lobbyId);
-    try {
-      const createAIGame = httpsCallable(functions, 'createAIGame');
-      const result: any = await createAIGame({ lobbyId });
-      const { tableId } = result.data;
-      router.push(`/play/${tableId}`);
-    } catch (error) {
-      console.error("Error creating AI game:", error);
-      // You could show a toast or an error message here
-      setIsCreatingLobby(null);
-    }
+    const lobbyQuery = encodeURIComponent(JSON.stringify(lobby));
+    router.push(`/play/new?lobby=${lobbyQuery}`);
   };
 
   if (isAuthLoading) {
@@ -71,16 +58,10 @@ export default function TablesPage() {
                     <div>Играчи: <span className="font-semibold text-secondary">до {lobby.maxPlayers}</span></div>
                 </div>
               <Button 
-                onClick={() => handleJoinLobby(lobby.id)} 
+                onClick={() => handleJoinLobby(lobby)} 
                 className="w-full"
-                disabled={!!isCreatingLobby}
               >
-                {isCreatingLobby === lobby.id ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Създаване...
-                  </>
-                ) : 'Влез в Масата'}
+                Влез в Масата
               </Button>
             </CardContent>
           </Card>

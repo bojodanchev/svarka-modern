@@ -1,9 +1,13 @@
-export type Suit = '♠' | '♥' | '♦' | '♣';
-export type Rank = '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
-
 export interface Card {
-  suit: Suit;
-  rank: Rank;
+  suit: '♠' | '♥' | '♦' | '♣';
+  rank: '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
+}
+
+export type PlayerActionType = 'fold' | 'call' | 'bet' | 'raise' | 'check' | null;
+
+export interface PlayerAction {
+  type: PlayerActionType;
+  amount?: number;
 }
 
 export interface Player {
@@ -14,33 +18,30 @@ export interface Player {
   currentBet: number;
   hasFolded: boolean;
   isAI: boolean;
-  lastAction: PlayerActionType | null;
   score: number;
+  lastAction: PlayerActionType;
 }
-
-export type GamePhase =
-  | 'pre-deal'
-  | 'betting'
-  | 'showdown'
-  | 'round-over';
 
 export interface GameState {
   id: string;
   name: string;
   players: Player[];
+  playersCount: number;
+  maxPlayers: number;
+  minBet: number;
+  maxBet: number;
   currentPlayerIndex: number;
-  dealerIndex: number;
   pot: number;
   lastBet: number;
-  phase: 'betting' | 'showdown' | 'round-over' | 'waiting' | 'pre-deal';
-  roundWinner?: Player | null;
-  playersCount?: number;
-  createdBy?: string;
+  phase: 'betting' | 'reveal' | 'round-over';
+  roundWinner: { id: string; name: string; hand: Card[]; score: number } | null;
 }
 
-export type PlayerActionType = 'fold' | 'call' | 'bet' | 'raise' | 'start_new_round';
-
-export interface PlayerAction {
-  type: PlayerActionType;
-  amount?: number;
+export interface Lobby {
+  id: string;
+  name: string;
+  description: string;
+  minBet: number;
+  maxBet: number;
+  maxPlayers: number;
 }
