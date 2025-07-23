@@ -22,6 +22,7 @@ export interface Player {
   handRank: number; // 0: High Card, 1: Pair, 2: Triple, 3: Svarka
   handDescription: string;
   lastAction: PlayerActionType;
+  isReadyForNextRound?: boolean;
 }
 
 export interface GameState {
@@ -35,8 +36,9 @@ export interface GameState {
   currentPlayerIndex: number;
   pot: number;
   lastBet: number;
-  phase: 'betting' | 'reveal' | 'round-over';
+  phase: 'betting' | 'reveal' | 'round-over' | 'tie-break';
   roundWinner: { id: string; name: string; hand: Card[]; score: number, description: string } | null;
+  tiedPlayerIds?: string[];
 }
 
 export interface Lobby {

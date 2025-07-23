@@ -128,19 +128,26 @@ export const useGameEngine = (initialState: GameState, user: any) => {
         const allBetsEqual = new Set(activePlayers.map(p => p.currentBet)).size === 1;
 
         if (allPlayersCalledOrChecked && allBetsEqual) {
-            state.phase = 'round-over';
             
             const sortedPlayers = [...activePlayers].sort((a, b) => {
                 if (b.handRank !== a.handRank) return b.handRank - a.handRank;
                 return b.handScore - a.handScore;
             });
-
-            const winner = sortedPlayers[0];
             
-            if (winner) {
-                const winnerInState = state.players.find(p => p.id === winner.id)!;
-                winnerInState.balance += state.pot;
-                state.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.handScore, description: winner.handDescription };
+            const winner = sortedPlayers[0];
+            const tiedPlayers = sortedPlayers.filter(p => p.handRank === winner.handRank && p.handScore === winner.handScore);
+
+            if (tiedPlayers.length > 1) {
+                state.phase = 'tie-break';
+                state.tiedPlayerIds = tiedPlayers.map(p => p.id);
+                state.roundWinner = null;
+            } else {
+                state.phase = 'round-over';
+                if (winner) {
+                    const winnerInState = state.players.find(p => p.id === winner.id)!;
+                    winnerInState.balance += state.pot;
+                    state.roundWinner = { id: winner.id, name: winner.name, hand: winner.hand, score: winner.handScore, description: winner.handDescription };
+                }
             }
         }
         return state;
@@ -192,36 +199,74 @@ export const useGameEngine = (initialState: GameState, user: any) => {
             }
             setGameState(aiState);
             setIsProcessing(false);
-        }, 1000); // Delay for AI "thinking" time
+        }, 1000);
         
     }, [gameState, user, isProcessing]);
 
-    const startNewRound = () => {
+    const handleRejoinTieBreak = () => {
         setGameState(prev => {
-            let newState = JSON.parse(JSON.stringify(prev));
+            const newState = JSON.parse(JSON.stringify(prev));
+            const player = newState.players.find((p: Player) => p.id === user.uid);
+            if (player && player.balance >= newState.minBet) {
+                player.balance -= newState.minBet;
+                newState.pot += newState.minBet;
+                player.isReadyForNextRound = true;
+            }
+
+            // If all living players are ready, start the next round
+            const livingPlayers = newState.players.filter((p: Player) => p.balance + p.currentBet > 0);
+            const allReady = livingPlayers.every((p: Player) => p.isReadyForNextRound);
+            if(allReady) {
+               return startNewRound(newState, true);
+            }
+            
+            return newState;
+        });
+    };
+
+    const startNewRound = (currentState?: GameState, isTieBreaker = false) => {
+        const roundStarter = (prev: GameState) => {
+            let stateToStartFrom = currentState || prev;
+            let newState = JSON.parse(JSON.stringify(stateToStartFrom));
+            
+            if (!isTieBreaker) {
+                newState.pot = 0; // Reset pot only if it's not a tie-breaker
+            }
+
             const deck = shuffleDeck(createDeck());
             newState.players.forEach((p: Player) => {
-                p.hand = [];
-                p.currentBet = 0;
-                p.hasFolded = false;
-                p.lastAction = null;
-                 if (p.balance > 0) { // Only deal to players with money
+                // In a tie-breaker, only deal to tied players or those who rejoined
+                const canPlay = !isTieBreaker || (newState.tiedPlayerIds && newState.tiedPlayerIds.includes(p.id)) || p.isReadyForNextRound;
+
+                if (p.balance > 0 && canPlay) {
                     p.hand = deck.splice(0, 3);
                     const evaluation = evaluateHand(p.hand);
                     p.handScore = evaluation.score;
                     p.handRank = evaluation.rank;
                     p.handDescription = evaluation.description;
+                    p.hasFolded = false;
                 } else {
-                    p.hasFolded = true; // Fold players with no money
+                    p.hasFolded = true;
+                    p.hand = [];
                 }
+                p.currentBet = 0;
+                p.lastAction = null;
+                p.isReadyForNextRound = false;
             });
+
             newState.phase = 'betting';
             newState.currentPlayerIndex = 0;
-            newState.pot = 0;
             newState.lastBet = 0;
             newState.roundWinner = null;
+            newState.tiedPlayerIds = [];
             return newState;
-        });
+        }
+
+        if(currentState) {
+            return roundStarter(currentState);
+        } else {
+            setGameState(roundStarter);
+        }
     };
 
     // Initial hand evaluation on component mount
@@ -231,5 +276,5 @@ export const useGameEngine = (initialState: GameState, user: any) => {
         }
     }, [initialState]);
     
-    return { gameState, handlePlayerAction, startNewRound, isProcessing };
+    return { gameState, handlePlayerAction, startNewRound, isProcessing, handleRejoinTieBreak };
 }; 

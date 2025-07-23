@@ -2,7 +2,7 @@
 
 import { GameState, Card, PlayerActionType } from '@/lib/game-logic/types';
 import { useAuth } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useGameEngine } from '@/hooks/useGameEngine'; // New hook
@@ -32,9 +32,30 @@ const translateAction = (action: PlayerActionType | null): string => {
 
 const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
   const { user } = useAuth();
-  const { gameState, handlePlayerAction, startNewRound, isProcessing } = useGameEngine(initialGameState, user);
+  const { gameState, handlePlayerAction, startNewRound, isProcessing, handleRejoinTieBreak } = useGameEngine(initialGameState, user);
   const [betAmount, setBetAmount] = useState(initialGameState.minBet || 20);
   
+  const isTied = gameState.phase === 'tie-break';
+  const amITied = user && gameState.tiedPlayerIds?.includes(user.uid);
+  const canRejoin = user && !gameState.tiedPlayerIds?.includes(user.uid) && gameState.players.find(p => p.id === user.uid)?.balance ?? 0 >= gameState.minBet;
+  const hasRejoined = user && gameState.players.find(p => p.id === user.uid)?.isReadyForNextRound;
+
+  // AI logic for rejoining tie-break
+  useEffect(() => {
+    if (gameState.phase === 'tie-break') {
+      gameState.players.forEach(p => {
+        if (p.isAI && !gameState.tiedPlayerIds?.includes(p.id) && p.balance >= gameState.minBet) {
+          // AI will rejoin if it has a decent balance
+          if(p.balance > 500) {
+            // This logic would be inside the engine in a real scenario
+            // but for now, we simulate the action from the component
+          }
+        }
+      });
+    }
+  }, [gameState.phase]);
+
+
   if (!gameState || !user) {
     return <div>Loading game...</div>;
   }
@@ -151,6 +172,33 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
               </Button>
             </div>
           )}
+           {isTied && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] bg-card/90 p-8 rounded-lg z-30 text-center shadow-lg">
+              <h3 className="text-2xl font-bold text-primary">Равенство!</h3>
+              <p className="text-xl mt-4">
+                Следващият рунд е за разрешаване на равенството.
+              </p>
+              <p className="text-lg text-muted-foreground mt-1">
+                Потът се прехвърля: ${gameState.pot}
+              </p>
+              
+              {amITied && <p className="text-secondary mt-2">Вие участвате автоматично.</p>}
+              
+              {canRejoin && !hasRejoined && (
+                <Button className="mt-4" onClick={handleRejoinTieBreak} disabled={isProcessing}>
+                  Плати ${gameState.minBet}, за да участваш
+                </Button>
+              )}
+
+              {hasRejoined && <p className="text-secondary mt-2">Платено! Изчаквате другите играчи...</p>}
+
+              {!amITied && !canRejoin && !hasRejoined && (
+                  <Button className="mt-4" onClick={() => startNewRound(undefined, false)} disabled={isProcessing}>
+                    Започни нов рунд (без вас)
+                  </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -200,9 +248,27 @@ const GameTable = ({ tableId, initialGameState }: GameTableProps) => {
                         </div>
                     ))}
                 </div>
-                <Button className="mt-4" onClick={handleStartNewRound} disabled={isProcessing}>Нов рунд</Button>
+                <Button className="mt-4" onClick={() => startNewRound(undefined, false)} disabled={isProcessing}>Нов рунд</Button>
             </div>
            </div>
+        )}
+        {isTied && (
+             <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                <div className="bg-card/90 p-6 rounded-lg text-center shadow-lg">
+                    <h3 className="text-xl font-bold text-primary">Равенство!</h3>
+                    <p className="text-md mt-2">Потът се прехвърля: ${gameState.pot}</p>
+                    
+                    {amITied && <p className="text-secondary mt-2 text-sm">Вие участвате автоматично.</p>}
+                    
+                    {canRejoin && !hasRejoined && (
+                        <Button className="mt-4" onClick={handleRejoinTieBreak} disabled={isProcessing} size="sm">
+                        Плати ${gameState.minBet}, за да участваш
+                        </Button>
+                    )}
+
+                    {hasRejoined && <p className="text-secondary mt-2 text-sm">Платено! Изчаквате...</p>}
+                </div>
+             </div>
         )}
       </div>
     </>
